@@ -1,4 +1,4 @@
-# Play & Gamble · Golfclub Bostalsee
+# Play & Gamble
 
 Eine Progressive Web App (PWA) für Golf-Zockformate. Läuft vollständig im Browser – kein Login, kein Server, kein App-Store.
 
