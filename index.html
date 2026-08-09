@@ -71,7 +71,7 @@
   .chip .cn{font-size:11px; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px}
   .chip .cp{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; font-size:19px; font-weight:700; letter-spacing:-.02em}
   /* ---------- main ---------- */
-  main{flex:1; padding:18px 16px 120px; display:flex; flex-direction:column; gap:14px}
+  main{flex:1; padding:18px 16px 120px; display:flex; flex-direction:column; gap:14px; animation:fadein .12s ease}
   .eyebrow{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft); font-weight:700}
   h2.sec{font-size:15px; margin:2px 0 2px; font-weight:800}
   p.lead{font-size:14px; color:var(--ink-soft); margin:0}
@@ -121,7 +121,7 @@
   .scstep button{
     width:48px; height:48px; border-radius:12px; border:1.5px solid var(--line);
     background:var(--paper-2); font-size:26px; font-weight:800; color:var(--navy);
-    cursor:pointer; line-height:1; display:grid; place-items:center;
+    cursor:pointer; line-height:1; display:grid; place-items:center; transition:background .08s;
   }
   .scstep button:active{transform:translateY(1px); background:var(--navy-soft)}
   .scval{
@@ -133,9 +133,9 @@
   .parstep{display:flex; align-items:center; gap:8px}
   .parstep .parlbl{font-size:12px; color:var(--ink-soft); font-weight:800; letter-spacing:.04em; text-transform:uppercase}
   .parstep button{
-    width:42px; height:42px; border-radius:11px; border:1.5px solid var(--line);
+    width:48px; height:48px; border-radius:11px; border:1.5px solid var(--line);
     background:var(--paper-2); font-size:23px; font-weight:800; color:var(--navy); cursor:pointer; line-height:1;
-    display:grid; place-items:center;
+    display:grid; place-items:center; transition:background .08s;
   }
   .parstep button:active{transform:translateY(1px); background:var(--navy-soft)}
   .parstep .parval{font-family:ui-monospace,monospace; font-size:22px; font-weight:800; min-width:26px; text-align:center; color:var(--navy)}
@@ -256,6 +256,11 @@
   .si-cell select{width:100%; text-align:center; text-align-last:center; padding:9px 8px}
   .badge{display:inline-block;background:var(--navy-soft);color:var(--navy);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;letter-spacing:.03em}
   .tag-wolf{background:var(--lime-soft);color:var(--lime-dark)}
+  details summary{list-style:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.02em;padding:4px 0;user-select:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::after{content:" \25B8";font-size:10px}
+  details[open] summary::after{content:" \25BE";font-size:10px}
+  @keyframes fadein{from{opacity:.5}to{opacity:1}}
   @media (max-width:360px){ .grid{grid-template-columns:1fr} }
 </style>
 </head>
@@ -279,15 +284,15 @@ const SKEY = "fairwayledger:v1", NKEY = "fairwayledger:names", HKEY = "fairwayle
 
 /* ============================ State ============================ */
 const GAMES = {
-  bbb:   {name:"Bingo Bango Bongo", icon:"🎯", cls:"bbb",   min:2, max:8, defP:4,
+  bbb:   {name:"Bingo Bango Bongo", icon:"🎯", cls:"bbb",   min:2, max:4, defP:4,
           desc:"3 Punkte pro Loch: erster aufs Grün, näher zur Fahne, erster eingelocht."},
-  wolf:  {name:"Wolf",             icon:"🐺", cls:"wolf",  min:3, max:5, defP:4,
+  wolf:  {name:"Wolf",             icon:"🐺", cls:"wolf",  min:3, max:4, defP:4,
           desc:"Rotierender Wolf wählt Partner oder spielt allein gegen den Rest."},
   vegas: {name:"Vegas",            icon:"🎲", cls:"vegas", min:4, max:4, defP:4,
           desc:"2 Teams, Schläge werden zur Zahl kombiniert – Differenz zählt."},
   aggregat:{name:"Aggregat",       icon:"➕", cls:"aggregat", min:4, max:4, defP:4,
           desc:"2 Teams: bester Einzelscore und niedrigere Team-Summe geben je einen Punkt."},
-  skins: {name:"Skins",            icon:"🪙", cls:"skins", min:2, max:8, defP:4,
+  skins: {name:"Skins",            icon:"🪙", cls:"skins", min:2, max:4, defP:4,
           desc:"Niedrigster Score gewinnt das Loch. Gleichstand → der Skin wandert weiter."},
   matchplay:{name:"Matchplay",        icon:"⚔️", cls:"matchplay", min:2, max:2, defP:2,
           desc:"Loch-für-Loch-Duell: wer das Loch gewinnt, geht 'up'. Am Ende gewinnt, wer öfter vorne liegt."}
@@ -398,10 +403,11 @@ function render(customHome){
 /* ============================ Screens ============================ */
 function header(title, sub, opts={}){
   const back = opts.back ? `data-back="${opts.back}"` : "disabled";
+  const backLabel = opts.backLabel || "Zurück";
   const mini = opts.mini || "";
   return `<header>
     <div class="hrow">
-      <button class="back" ${back}>‹ Zurück</button>
+      <button class="back" ${back}>&#x2039; ${backLabel}</button>
       <img class="brand-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAA5SElEQVR42u29eZxcVZnH/T3n3rq19d7p9JaErGTrLARCIAkhYZNFxMgujhvi7owOjKPDjK+vI46vqOg4og4ioCC7YQ2ggcSEhIQA2fetydKdpNN7137vOe8f91alO+mlulNZcLyfT30IXdXV957nOc92fs/vEfTj0loLwBBC2J1+NhSYDcwCpgBDgcFAkL9fubySwGFgL7ABWAX8VQixu5MsTMARQuhsv1T0Q/iGEMLx/h0GrgVuAy4ESv8un9NytQBvAU8CzwshWo6V1QkrgLfrpRDC0VoHgC8BXwNGdPqYArT3faI/ivX3q1+X7vQSgOz03n7gQeCnQog2rbUEdF/WQPQhfCmEUN6/PwTcC0zy3k5rmDzzBa7Tz3Pcz7pbCiFEfw3k6Xww5f3b8P67A/iOEOKJY2XYLwVI/6LW2gf8EPhn7y3bE7o841ZDg0YjUJktArKTQPv7fe76pr9LIxEIhDhjlcEBTO///wB8WQjR0ZtLEL35e611pfdFl3bSNHkmPbFWGqU1QoAhu781R6WwnTjxZDMpO07SbsNWSYT3+BqNKS0sswCfGSBgFWMaAQzp6+H7FFqDFAIhxZlmJ9Lu2ADeA24SQuzqSQlELzu/GngNmAikAN+ZssuVVqDBMLoKPJVy2H/4IEpsoal9B03tu2mL7icSbyCRaidpd6BUEttJobXd6fE1QpiYhg8pLSwzD78vn3CgjILQEEryR1KSPxqpJzBkcAU+n9FVIRwFAqSQZ5J1sD1rcAC4QgixuTslED0IfzDwhid8u5NZOX1q7e10s5PQlVJs2lXPirU7WbZ2J6s3HaAtvpd/+vSrSJn0zL+BIUyEMLyXcHf+sZLSGo1Ga43WDlo7ONpGKQcpHeKJIPc9fCVl+dVMnzCEi6aOZubU0UwcVYnsZHlsRyGFQEpxpinBPCHEjmNjAvOYaF94Pv/JM0X4jlIIb0ElgmTKZsXaXTy/ZB2L3tnG5tqDqPYYSAE+H9LvJxobTFVZlGRKQvpZtU6Hgmi0a0q684lCIoUEYWECWksClk3DkWKaWwI0N9WxfcdeHluwHJkfZMLwCi47byzXzZ3CzKmjsHzucintKlNPbukUXaYXF1QDz2utZwGtnZWgs3DTqd69wNzTafa1dne3YcjMAm7aVccTr6zmmcVr2LqrDpI2+H3g92EU52XcnxMzqWsIMaSiBSfpQ6L7+9fd3/AURCmNkCnqGoII28AI+9BBf8b0b9y+n40b9vCzxxYxblQVN8w7h1uums7EUVUZK+M4CilPm3swPFmOBx4QQtygtTa6uIBOQd9lwF9O5853lMoIXQMvLF7LAwuW8drb27DbohDwIQIWhhDuLlM6I2IpNSpi8aFLt3H9FVvoiFhIqU/Q9Qjywkkef6mGxW+ORoaSKCUyiyekQAqBozU6noR4CrMgxIfOH8sd8y/iI/OmZvxs52c7je7gs0KIh9IyNz3Tr70izy9OVwLsKNd3GlKSSNo89vJKfv3sUlav3+PuxnAAszjPjQWUxu5uZ2tAag4cyneFlIOnEAJsW7L/UAFI3aV8kMlCvB9Kv4UM+rEdxcuL1/HykvVMnzyCL14/h9uuuQC/ZaK1G8ucBkWQXobwI631y0CD1lqaeLV9rfUXgHGnevcfuyCPLVzFDx98hY3b9oFpIPOCCAHKUdiO6rvcYygamsLE4j6k0Cd4c2BIRUfU4nBTGAyF7kWrlNYox/2ELAihNazeWMvqtbu479FFfOv2q7jt6hkYQmQUXpw6vyA92Q4Cvi2E+IbWWgrPAgSBLbgHOfpU5fpKqUwE/dd3t/Pd+19gyaot4DMxQn5XOZTut9BMQ3P359+krCRCyjYQA1QErQV+y6a2roh7fzsTPQB3IqUrZCeagJTN3Bnj+e6XP8LF55593BqcspIoRIBxQogD0qsVfwQY5pkIeSruQ2n3wRua27jje39g7h0/YcnqbRiFYWTQwnFU/4UPCKmx4z4OHsnDNBX6hKwTGIbi8JEwOmUMKJ5QSrtBYNDCKAyzZPU25t7xE+743h9oaG5DSunWNdCnQgGElxXkAR/vXNX7h1N1B1orQCCF5KVly5h643/x2ycXI/wWRl5wwILv7LNxBPsPFSClRit3JyvVv5fWAq3dFdt/qACUOEFr5yqCkRdE+C1+++QbTLnxv1i44q9u2onw1uaUuAIN3KK19pla6yrcI11xsne/0g5SGCRSHfx1w3/w5tbnaYpdgllQgIONo3TOHrH+cB5aCUxT4zMdpNRuTCCO7u7jFMczkspTmJQtsZVk/6H84wLAEwt2wcgvoj15iBVbP4Xp/xgXT/4efl9eZo1OsgIATAammMAcoPjkmn+N1gopDA42r+PV1f9MfeMmzj4rzK3X7uChJ85BhjRuOHLiNQQMxcHGMImkQUfUoqUtQEu7n/YOP21Ri0TCJBKxEN7TagXhcBK/36YglCQ/L0FRfoLiwhiW7XC4MQ/M3gPA/q6HnVR88qZtjKg2eXf7H6lrXMeV039KRfEUtHYQ4qQesiov0L9MaK1/AXzV8w3GSRA96ax5w54neH3tf+A4CSwzD9txCAeT/Pqpc1mzdmiXHPuEo3dTU14coaU9QDTmA9twzbjuIdHt/HOpwXQIBVMU5iU41BRC6dwII12ruGjmbj553XraIxamaZBMdWAYfi6d+p9MGnFLpiB1ko6a0pv9ZaG1XoYL6cq5BXCF7z7AXzfcw8ot/03AV4AQpldvdyP29qjFD38zm/aoBYbuqUo7gNKHAVLBMeY/GwVSWrgKowSYufHNQmh0ymBQaYRv37Ec03RQyj1eFsJAa5t4qo0Lxv8jF0+6+7g1zHE2IID3pZf65bz4o7VCILCdBC+t/Apvbf4ZIasEgURrJ+N3U7akpCjKzddsRJ9AytbtgvtshBe5q/4Egt5uF1IjfE7u7gdAC26+ahPhUBLHOVoe1tpBIAlZJby1+We8tPIr2E4CcXKCw7SsqyUugDOnCqC1QghJyo6yYPmn2fj+U4T9ZSjtoI+JpKTURKMW02vquGDa+6joiZdvO+fx+gS3ic6l6Y9azD6/linjDhGN+Y57To1GaYewv4yN7z/FguWfJmVHEUKerAzBlOQYvdtV+Lezu/4NwoHBKG33ahrjSZOPXbGV4tIOVCq3luB0X0JoVNKgrKKN+ZduJRY3e30+pW3CgcHsrn+DBctvP6lKkHuf30n4ew6+QchfilKprOrtBfkJbrxqM6QM/qZwpVqAFtx27QZCwVQX099z3SBFyF/KnoPHKEGOyzUyl+JHg+0keG5FJ+H3svOPNZGRqMW0CfXMnb0TnTBPvJbvqZEQ2q0DdHoJ0fXV7fu5CvwSJh++dBvjRzUQjWXv4pS2M0rw3IrbsZ2El63oM08BXNMveO2dO9lVv4hQYFDWwk8HaaZUGIaivCQKYmC67mLY00IErQQ6aaKiFqrDj4r4URELHfd1eamI5b7X4UdFLXTSRHsRerqINFCFEKaiIJxACDBN1a9UV2mbUGAQu+oX8do7dyJEboNCofWJJ13p6tXSDT9gxab7CAfK+id85R66JFMGT71Sw1vvDkNYdr8UIJ3mKUe6LsSW4FOE8pKUl0apKotQWhyhtCBGwJ8iFI51+f1oJEg84aOxLUhjc5i6hjCHGkNEOyxISTcV9DlIQx1NE/uhlDphMvO8vdx41UYsn0MiafYr2JXCJBJvYObEbzBn0r/lrGJ4wgqQvpGNtU/x8qqvEfSXZNK8bIUfDiXZV1/Iw8+ew/79RYhQMqvoW3ipmlICkibYAis/xZhhLdSc3cDIIQ0UFrQgRZxYAuIxi/ZYEMfxo1N5x6SMHRhGgvxgjEAwSdAPSgdobSti9/4yNm4vY8feIpLtPjA1WLZ31pBdpiGERkcthgxp4dPXr2FoZSuRfmY8QhjEEk1cM+MX1Ay/KSdKcEIKkI74DzVv5PHFH/XOtmXWPiqNtlm7pYJHnj2HSMxC+lNZmUgptbvb4yZYDhNHNXHB1AOMGX4Aw2inoTFAY2MVOKMJBccyqGgkg4sqGVQ0iMKCPIpCocxZvNaalmiU1rYOjrQc4XBLPUdadhONbQNjJ6WldZSVxnGcfHbUVrNybTWbdpVA0oCAjTRU9vec8BEOJvnU9WuYOv5gP1FLAlBorbl13nOUF9dkZHDKFUDjnrSlnAiPL76OxrYd+Mxw1rtfKUFeKMny94bx+wVT0VIhs/CPMr3jYxb+vAQXTTvAnPN3k593hH11IQ4eqqE4NItJI2YwZexYzh5eTknRwBanqQW21x5i3bZtbNiziubocirKNzK0Kkp7xyCWvj2SZe9Vk+jwQzB59N76un9bIpTkk/PXMmvaXjr6YQmEMEjZEUoLxnDr3OfxmWGEHHjJeMAK4MKlDRatuZPVWx8lL5h9xK+UID+cZOHS0SxYWIMIpNygrxezLzwfr6M+zIDNpRfs49KZ21C6lS07hqNSl3HR5KuZN30Ko4eFjrNUSms3HRPpvSSOU+ijRVLtoXW67qyde6MsXr2OZesXIn2LGD+mFikKeX3FWF5fORQ7biJCKTch6utZtEDHfcy/eiNXz9lJez8sgRQm7bFGzh/3CS4758ceqMQ4dQqQRrG8unIFSzd9nFFDTNo6DC+lys7sv7JsNAterkEGU17Fra9dY0DS4NzJ9dx49UakPMKajRMp8F/P9Zd8mHnnD8M0OglcuT1+7mugLg6vT0AjJRmFsB1Y/PZenn3jJdoSz3JOzSaUGsTTC2t4d30lWA7Sq/P3VvsQgIr5mH/NRq66aGdW7iCNUyjMt9m6RzNv0mNcNfPCASOL+q0A7k6CptYOxt14D6nUYW77yHamTjhAImli27LHh3C8nf/mu8P4/dPTXOH3cczullB9FBbF+eT8jUwYs5vl71Rhqtv47LW3ctG5FZk97Dg6A8E6KfUcD6JmGEcboJe9e5Dfvfg4tnyMWefVsXnHSH6/oIbWlgAy1Hs8IzxFUDEfn7zxPWafu5f2iIXRw/opJfCZDj6fYvX6ofzxpbMJBUrZ+vTdlBTmed1J/Xt247vf/e53+6sAhpT840+eZvlbG0gahaxeU0lTa4jRZzWRH06STBkZLT/W56/bWsGDT56L9Ntugay3HSJAR/xMnniIuz63gmSqkeWrruPGi/8/7v7ctZxVlYfSbp9eunnkZIIsRabjR6CU22AyvCqfj869EDs+h2f/0saQ6tV85NL9HDhcyMH9RQjL6d0CCZCmYt2mKoZWtTKsspVk0uzyO9pzKeFQkpb2IH98YTIvvT4WZVhEGxtpiiW57uIpKK37rQD9sgBpXPvydbu46NM/QgYsDxLtpjilgzq44arNTJtYRyJhYjuuNVAeuPJgQx4/eXAW0aSBMFSPflIIjVYSkgYfu3I7V1+yjkXLqijL+wZ3334T5aUmWru/f7pbsJRKVxMlhxpt7nnwKRo67uOyi+pY+MYU/vTq2WA5CNnH8zqSkOVw5+3LqSjr8JTADSpNU2H5HFatG8KfXhtPa0sI6aXKEoGKJ1n28DeZNWVUv3sP+qUASrnVsNmf/wkrVm/DCAdxlDpqqr0CzJwZtVx3+RbCwRSRqA/TUGgkP/rtTOrqCxABG616XwwD+OKtaxk/eicvLZrNLZf+O5/6yJQuingmXZ3v6ZEX1vHE69/nw5e9yZado/n141NxoHellxodN6mqbOObn1vhuTRBXihFa4efZ16dwNvvDXPrD52yJUNKnEiMmdPH8ub/3ulCuvuxKbJ2AY7jtmo99Zd3ue/BVzAKQhnhp4MTYSiEqXi/dhDrtpVTVhJlaEU7lqX4w/OT2bK1AhlO9Sl8E82/3LGastJa/rzkFu754r1cNXsEjnIQiFMJo+5HpU54PQ6Kc8ZVMv6sy/jVk01MmrCM82o6WPleFUpLD58guj0wkpai7UiYlojFjKn7MU3Nmk2VPPDkuezcXYYMJY/LlrTWGAGLvbvqGD+mmkmjq71WNJE7C5AmXkjZDlM+fg/bd9a50O0eQJxSusefOJIr5u6gpDDGE89PRgZSPZZQjwof/uXzq/D761i79kv8/K67GFbpx3YcTMPgg3Cl73VvfYJ/+vGPmTr1VyQSVdz7vzOw+7AEUmhU3MdN126goSnM4jdHuSVoX89ZhSEFKpbk7NFVrPvj3fhMI2sii6wUwHYUpiF5+MW3+My3fotRFHZ74vsqfWqvRCtdy9BbwIcSGFpz1x2rCfgPsH7Dl3ng7m9RUiQz1ueDdKXvualFccc9P2TypPuJJ6r58QPTcYQA2TP0TQA6ZYAWCL/txlh9lMYNQ+K0RHjoh5/j09demJFZTk4DDSmwHcXPnlyM8BlkA9pL37D0pxC+3hs0BKCTBl+4dR0F+ftYu+5LPHD3v1JSJHCUzpnwteerHUd5J2onD3RiGBJHaUqKBA/c/a+sXfclCvL38YVb16GTRq91Ow0Iy0b6U5kMIJuihfAZ/OzJxdiOwsjSBchsNFkIwasrNrFu/R5EONAv/L7yChe95vkRHx+9chvjR+9kyfKb+Z9/vYuSIgNHkfWDZOPGhBc0GYbMwK6VRwZxMpTBkAJHQUmRwf/8610sWX4z40fv5KNXbkNFfL0WfbQW/TpxdJRGhAOsW7+HV1dsctvRHHXiCpDOq3/5zFJXy3IZOEmNivmoqTnEtZes58VFs/nRV79D9WC/F1XnUPjCDZheWbaR37+4lLrGdShtIz3mELczx1WGXKJuXCVQVA/286OvfocXF83m2kvWU1NzCBXz5Qz/mLakaO3KCrKqifQaAyjlVta21h5kyi3fJ5XDfZJu4coLpfjBNxbz5rsFXDvjIW67piZr/5Vt9U4DkWiCW771AAv/shbyUvznN1YyrHwIQwddzPCKOVQPOh/LDHc5P3Ah2TInxaX0Mz328kZeXPUZZp/bxr/dN4+OqC+nUHiBy+qx7ol/Z9zwiowMB2QBlHdXjy58m2RrJKeBmBAanTT51PxN1DXEqCi40xO+kzPhZ5RYCO79/V9Y+MoqjNIC8gvDmNKiqX0nb2+7n2eX/QN/WHQlr71zF9sPLCSWaPSoYowMAsd1FQNH4piGxHYcbrumhoqCO6lriPGp+ZvQSTOnAFjDkCRbIzy68O0uMuy3AmjvyxLJFE+9/h4ErRNq2uyuvj91cj0Tx+xiw+Zr+ffbb0Dp3Bd40rt32fpdyLwgyvGCQDSmESRolWD58miN7Gfd7kd5fsXneOQvV/Diyi+ysfYpWiP7OymD9BZ1YMpgeJ3A/377DWzYfC0Tx+xi6uR6VDR3rkApDUGLp15/j0QyhWH0TpJj9vxFrjBWbaxlx+56ZI4UQABaSXx+m1uu3sSb71Tx2Q9/nUHFpts4eZJKu4Yhj7v/9DGxAExp4TMCaCCWbGHr3hfYvPc5wv5BVJZOY3j5xYyomEtJ/qguKBylHS/n7pshVwj3DGFQsclnP/x1nn1zFbdcvYlN2wZhK4nIQfShtEYGLHbsrmfVxlrmTBvTa+VU9hY4ASxYvBYSqX4fMvS4CFKjYyZzL9yHlA1Y+hPMnzfmpJd3+/Kx6aYMrR2kMPFbhYSsYmwnzu7611m05t/4w6Kr+ePij7Jyy39T37Qm0/DaNaNQfVoBRynmzxuDpT+BlA3MvXAfOmZmuphyUZUkkXJl18ezm73tGNtR/GX1NvD7+vQlWe9+R+APJ7li1nbe3TCRr99wGwjNmdUH4nEF4iJw/L4C9+xeO9Q1vsu+wyuwzDClhWMZWnYho6uuoLJ0Gqb0Zx+tC80X5t/Gz555kStmbWfp20NIOm71LhdWAL+Pv6ze5tYEeompZE9+RABb99SzbU89wu/LjfmXGh33Meu8AziqmeLgDcyYXIaj9BlZ3++sDMqDullmmJB/EIZhcaR1G+9s/1+e+ust/HbhbF5c+SW271+Io5K95ktSukWiGZPLKA7egKOamXXeAXTclxMroJRG+H1s21PP1j31rvL2VLbvLfpftnYXdnssd5U4JRCWw9zpu9m8YwQ3XvaRnHe6nNwr7efTjKJumdY0LMKBMvKDVQSswqx7+zWaGy/7CJt3jGDu9N0Iy+nxoGwgMY/dHmPZ2l29ZgNmjzk68ObaHeSK3VBK95Bj/NlHyM9rAGc+c6ZVw+ln0+xT6EJIl1xHpUja7WjtEPAVM7RsFiMrL+Gs8jmUFY7rd0agtWbOtGoeXngF+Xn/y7hRTWzZPsg9NFO54bh7c+0OvnTDnB7FaHYXLBlSkkg5rNq0HxEwAeWmKRo0YuBFC0dw4dQD7KsLM2fK1RiGC+NyIVZnlMi9PjxQKkkyFUUDIf8ghg2ezeiqyxladiHF+SOPsZxO5nezNdWGAXOmXM3mA49x4dQDbNlSdkLFNUGaB0GB32TVpgMkUg5+n5GpiPahABohBHWHD9HYWo/Gjx3x0h6p3A4Zr38uXTDIRimUI7HykowZfoANWybxtY9OBQRnyuZ3SaTd5kvHSZJyoggk4WA5oyovZ1T1FQwZNIOCUHUXI648HoR0raB/VtF1KZdOn8obayYxafwmrLwJJG1JX1FxV2G7kDttS7QjQEmX298naGqro+7wIUZUV2Vk26sCuBzCBkps5uuffpW29grqG0IcOJzP/kP5NDSFaO8IoOKGVy3SYCj31WNaolEJk9EjmzGMdorDMxle7T/hpobcnBG4aGbbiWM7MaTwURAewtCyCxlVeTnVg84jHBjcTYl4YEI/Vum0Vgyv9lMcnolhrGT0sFY2bx3UK3YC8IQtwfHgxZZNYUGcQUVRqge3M7SijaryKPnhgyhxA1CVkW3vFsDj9Glq30E4GKFyUBPjRh4CIGUbtEcsjjSHONwYZt/BQg4cyudwU4i2qNXzDQvAkdSc3UBDY5AJw2d4WgunC+OhAb+laI+2IPBRnDeCoYPdlK6q9Dz8voIezgVkTg/E0mswYfgMahuD1JzdwOZNg9OxZg/xg6YwP0pZSZSqsg6GVrRSWdZBaVGUcCiFz3Q8GluLtmiUpvYdjOKyTnxNvVkA7yNN7XtwlEEsYR4lRxaaUDDFyLxmxgxvdCleUpJIzOKnD1/AwcP5CJ9z3Pm11oCpGDW0gfrDlcy/cFyXMu2pN/fgMzS1+wNMPfsGZk78KBUl5+AzAp3u2UnnrjkXenel6nPGjmP1y5WMGtrgMpLpHs5PUgbl5e3882feIhRIeXhLcByJbUuSKUkiaXguxkApg6b2PV1k20cW4Jrktuh+pDQyvfOZOE4JHMf0gArgMxW2I2mL+F12rWP+iBC4iNf8JIX5LdTXT2bs8DJvbU+9AkihSaYM7v/j+dTu8bHkoX9iaFkVSqeDOLcBRIhTY5rSazB2eBk4YyjMX0ooP0k0ZiCOOyV0kUQtHX6SKQOf6XhsI15w5zXmpA+XXNkZtEX395j1y2MNo1uvThGJNyCFeZwd6kq44Pa7N7cGiMV83cKcBBocSXlpFCHi5AfGUlIoPBKpU2/301ar9kARCIGtWjyIudMFG3AqKwtaK0oKBfmBsQgRp7w0Co57NnCcJZWaWMxHc2sAn6mQkl4ILXSmrVyplGdtdM8KkH4r5cRJpNqQ0qA3yKD28vuW9oDLpdtd5Or5/6qyCPEElBWPzKRAp7OeY1i290/jZJMyZpUOgrs28QRUlUXAkd3ekvTcQEt7wG1P7zXIdS1AItVGyol3kXH3FsATdjzZTNLuQGD0WtJ0d5SmvcPfpfHy+CcUlBZHiMctygorOlfET2MGcCbVHtx7KSusIB63KC2O9MxNLAAtaO/we02mvZs8gUHS7iCebO4i415LwbYTQ6lkdpAiAW1Ri75QnyUFMdpjIQYVDzoT5H/mVZiBQcWDaI+FKCmI0RdqtC1qZQf7FsKblBbL5izAlWIi1Y7tZKcAaEgk+p4vEfSnsG2Lgry8vwu8h6sgLw/btgj6U31+NpEwszo2FEJgO0kSqfZjHH1vFkAlM7Tu2eTTkai/x4+6gYtyOXlSeZTkhXtMSf7vGgB3LUrywpDKc9dKqp6rq8Jd8ywpJdBaYatkNhaAAQnnb4nU8QOjNP1c855kKv++lP+3L9m9We+fdp1ZEfX/jau/a96TTLtVAFNaXm7ctyIIIBxK9PhRt+9PEo0EwddBU0dkQEr2Ny1Mby2aOiLg63DXSvVCJ6vdNRdZfrsQElNa2SiA+5V+Xz6mYZEVdYAAv79vcqhYwodpJmnr6Pi7xHu42jo6MM0ksUTfA1v9fjurVFprF7Hk9+V3W3/p3gIYQaTMTgG0hoJQss+8taktSH4wypHmI91lI//XTQAAR5qPkB+M0tQW7LOuUhBKZgXMcauBFqYRzMICeDYnYBVjmXlol9ei1xvRWpCfl3ABDD3dkNQ0NocJBJI0tB7kb0ED0uxhuWnpcr+kofUggUCSxuawd7DWw0eFJj8v4cYBoo8UEAfLzCNgFXeRcbcKkH7LZwTw+wpQyum1GOSiTQVF+XGEz+keD+ANcaprCBPwQ0PzbvcPyw9m4OgolZlonqagO9FRd+m1aGjeTcAPdQ3ulNLu9ojSAuFzKMqPu+Nm+igCKeXg9xVkjrpFXzGAazJ8nQifxXHyPDqHz+X5Ly6MEwymQB3PSqERYCgONYbQOkB7fBtNrTqDuTv9O1l5XcEqA/zoyTop5QJYDSmJxZM0t0WwbQfDkEivC3gge18ISVOrpj2+Da0DHGoMdTumNk2kEQymKC6Mk7IlSnF0zmE3W9QdPlGGlD7PpfcBCXNnRxkUhIaglJMRdrr4YBga03AwDJU5WjUNlw49GrE8aJjoEiMIQxFtt2htLwJjB9tqG7hwymC00icFE5Amf9Ceqe5tFLLPDCOEkSGZ7Po9TqdFdYX8+ttb+c3TS1m+YTdNkThDSgu4asZ4vnzLPMaN6Lsb97i/4a3BttoGMHbQ2l5EtN1C+FPdpHoalKQoL4Hlc/CZiqDf7gIIcTxlSFsWpRwKQkO6yLZXBUjDhkryR2BIh6DfRgi3Nt0XJMxFsohuU0FtS3btK+Osyh2s2bbVVQCtycWpkEaDdpExnZs4BZ2fVx+/mEJS1/QedY0H0AQJ+MIErEIsXz4+I+jiBTv9xt33P88P/vs5SKUoHVnJWYOLqD3UzC9+9Ty/e345D33/s9x42bR+KUF6DdZs20pZST279o0BWyICx7d0ae1OMDvUHOIHv5mdFSQsaTuU5I/oItteFSBTl84fQyQWpv5wSbegUFLZg0LTccDG7WWcV7OezXtWAXNOGBGc3ulCGOAJS6Np6ajlSOtWjrRuo7FtFwn7feqbSsHM96BerqtD+lmy7nscidSRSIYwDROfGcIy8wkHBlEQqqYwPJKzyifx6EsRfnDvM1SPrea+O2/iQxdOIBiwaGzp4Pcvr+LbP3+Wj9/1a8p/9y99NmR29f/ufzfXruKsETFe/mtZj/7/aBwiaGoJ0dSYx7at5UdBofmJbkChcUryx/RYDu4GFu4WIKSewM8evpKWVgucY2DhhkKmx6llAQtXWoDlsHNvIY6TT3NkBbUHEh4yWPcbG+hO1jy60+PJFvYdWcn7B5dR37SG5o49JJKtXgxjEgyA7cwBUYg7H7OTC5B+LDOPlO32PyRT7cSTrbR01LJXrcQwUvz5nULuuX8OJUPLefWX/0jNqKPQ8IpBhXzzU1dQVVbIP3z9fu787wWsfPCurFyb++yS2gMJmiMrGOLks3NvIVhOn/QwwlQI0+kCC29tC9DaHGTXLq+3wGdTXJDiE5dM6CLb3i2A94mqweWUFlbS2lqHEfZlOILTwu5v54o0FMkOix211VQM3sDrq9dye/X5nbh3s9vxnfF6+xpWsmXvAvYcXExbdD9aKwxpYRp+/FahN3MPLDPVI/xce2Nt01tOCBNTAIYfpST54RTvbBiNagzwxX+5iJpR1SRSNpZpQJobUCk+cfUMfvPcct58cyPrdx7gnLFD+yRwTjeGvL56LRWDN7CjdijJDgsZ7nuCqvZk0dlSuEqhM5zBdixFSUE1VYPLu8i210KQEG6q4/cZzJg4BB23AZkZqHhCea+heWttNUOrIixdtxDHyZbqVXeapwvb9y/k8cUf46m/3sTaXQ8TTRzB7yskaBXjM0PgDadU2h4AmYPOKIXWDo6yOXAohPAJLjn3bJTWmIb0GknS5MyuIlw2fSyiPcqmnftwm0b6Tv8cR7B03UKGVkV4a22161IH7BKPDsgECQmbGROr8fsML3XN9jDIu4fZU8eQK/IapQTCstm6q4T2jjIw/szS9w6Ap3C9+3mBEAb7G1byxOKP8fyKz3HgyNv4zBBBqwRD+DIdvCeF/q2fg8P9ViF9jYN3lAKBuwbGn2nvKGPrrhKEZeemL9AT5OypY7rINCsFSJNBXDR1FGZ+MCu6sWwuITU6abBk9UgmjNnD04te6BV7kDb5thPnjbXf4cm/3sT+I297kXreUe6eLA+tBnTPQFV5ByQd3nh3m2taHZUhn3K7bt045vXV29B5fiKp53BUHJ9p9qoEAsHTi15gwpg9LFk90uUPzBFJhOMozPwgF00d1UWm2SmAdIsK40ZUMnZEJTqRyknlTiuBCKRY/k41hiymOfYMq9Y3uFSnx1iBtMlv7tjD44vns3rbr90I3Zc/II4epbunTlW696EOiZRBzZh6rHKDXz2+lI079+P3mV1cgGkY/P6l5SxbtoOzxkkaYz/nj2/Mp7mj1pv46RxjDV0KvFXrG2iOPYMhi1n+TjUikMpJe7iUAp1IMXZEJeNGVPZKIC171SBDcvn0sTmjiNGAMDSJiMWfl5/NtJpN/GbBY+74lON2vkFj2w6eXHITB5vWEQqUZfxyf/2iYSjyQwm0LZBGpxmAQlOYl8DR3dshITSplEF5aTvXXLKb5kMOH/rKz3nqz2/T2h4llbKpb2jmhw+9zGf+nz8igz7mX7qZ/GAxdY3reXLJjTS27fAmg6uulX8t+M2Cx5hWs4k/Lz+bRMRyG0FysPvTFDGXTx+LacheLbjsTfsB5s+bmjOKmIwVCNoseWsoSpWRFI+yYPGODHdO2uw3te/i6aUfJxI/RMAq6nP8bG/PYduSy2fuxh9KYrf7UUkT1Rbkwmn7Og1o6Jn4Ohr3cfnM7Xzomt3U1cW5+WsPMeb67zPl1v9i9PU/4NvffxHTB5+5eQ3jRjYQiUEoUEgkfoinl36cpvZdmdm/6frAgsU7SIpHUaqMJW8NRQTtnJFDpCli5s+b2t35T9f16YkoMv3DZDLFpFvvYceeeqTfyokiHKWJO8gXblnKy4vm89B//JzSIukFSAkeX/wxDjavI+Ar6tcQyu6tgCDgt6k9UMgbK0bSFvEzcfRh5s6ozZ7vQEMgYLN5ZznL3zmL7XtDtMcFgwoUk0a3Mnv6bqrL27pMBZfCJJ5qoaJ4CrfO+xOGxyHU2KL4zH/+E9dctoDfPDGHtesr+hwv05/drxJJxoyoZMPjd2NZvl5joF6ZQtPslv9+/wvc84sFmCX52DkKCNPj1L/6mXfID79PtOVH/OyuWwB4c+O9vLnpR+QFBuMMcOd35+v9PhvTdAcxGIYiFvf1+zvc0rgmEvWTtA2CVopQKEkqZZBIGsfx/RnSR0f8MLMnfpPZNf8CwNd//AShom/SHjmL/3noPGQombPI3zQkdlM7d39tPt//8kf6ZF2VffoS4BNXn49VGM5ZNpDelcKyeWTBRKrKgtS3/ZgnXt0ONPPO9t8RsIpwlJ2zv+c2hZpEoj4SSZNI1BrQd8QSJtG4D9O0yQsmEFLTEbFIpoxuyR4dZROwinhn+++AZp54dTv1bT+mqizIIwsmuiNyc4ipdByFVRjmE1ef32v0n50CSJfYcNzwCi6ZMR4dieeOMEq7lav21gC/efJcLp+1jydfv5cHXvgFUrYgMHOezwtxdDL4QJk5pXCDSK0FtuO6j/R39uQ7BCZStvDAC7/gydfv5fJZ+/jNk+fS3hpw5yjk6DENQ6IjcS6ZMT4rnmB6PSc95rTqKzfM4dXFa3MqEqUEMphi46ZyXl5yDpfMXsSOuiDDq/NIJBWGNE4bh0DWRYIs1s9RCr+Vx44DT3DJ7BgvLzmHjZvKsyr59jfLQriy6iy7E1IAw3DZrK6cOZEpk0ewfmMtRsif9cwAKXSvgZZSAhlK8dxrYykr6WDWtP0caQoQDqXoiLWTsnXOWEpP9aW0xmcK8oL5RKI+Jo6Jsvy9ITz32ti+Zwp6qWq2MwMMKVCROFMmj+DKmRPdWUJZWGszmy93lFv//vrN8/jMmt96eYXu09xqLVAJX58jY7R3kPHIn6YSCiaZdPZBlr8zihsuuY7KMpNo3EXd5MxWnnTL4A5rCAUM6htsnnnjeWadt4s1Wyp45E9Te12LtGHRSdONk7IcGYMQ6JTD12+e5zGTK0zjBOcFdD15OjVDoyyp+dqn3iYv1Mq2rf/Iz+/6CoNLP5AGgMON8E8//iVjx/03HdFCfvHI+SSVOKOGRmU1Nk4I9+jSZxqUFeXxzCtvIwPHw8bTs4N1zKK8rIPP3LCGuee/z6ihzTS0hNj3fiky4PTw8AIhNY6SvLOumvOnNDBkyIvc94e9jDvrPKoHh0nZaQpWhT4DX0orHMfGkAarNx3mq/d+i/PPu59YvIyf/W4GKd2H8A2NilhccN5ebrhyMxNGN1Bd0UbtvmKibUGk5XQbfEgpUdEEv/y3jzPl7CH9QiT9fXBkrtKvD+jgyL+Pjj3hTOaDPTq2X8OjpXChz2dVlrLvSCvvvrsNYYXQCcnM6Xv53E3vMaK6hUjM8jSxcz3eYFBxlMrBHbyzboh77Cl6DoOEdAPDLZvKqa0bxHWX15LUr/Lgn3ZjMIqa0WUu7r3T8OhTLXiNy3IuhOCp17Zyz0P/L0OG3c+E0YpfPXohS5YPR4RS3sAq0aN7FVqAbXDHLe9y9vBGYvGj5WTX/QpSKYORQ5uZVlNPW8TiwP5ipClRbe3cftNcvnrT3AFZxr+Pj+9X8epvb3x8vxXAvREX6/bqyhUs3fRxRg0xaeswMkFgX8WfvHCSV5aNZsHLNa4SQN+zBW0DkgbnTq7nxqs3IuUR1mycSIH/eq6/5MPMO39YBtuvtUIpunTvDLRamW4Bk5IMJM12YPHbe3n2jZdoSzzLOTWbUGoQTy+s4d31lWA5SNPpI8/3OqtiPuZfs5GrLtpJR8Tqs0KpPVheYb7N1j2aeZMe46qZF/aJP8ypAriCdJDSYNGaO1m99VHygqVZn9opzxIsXDqaBQtrEIHUcUORu/OTCNBRH2bA5tIL9nHpzG0o3cqWHcNRqcu4aPLVzJs+hdHDQscsmvIs19FeOnFcx5PuVJRwi0/HAkl37o2yePU6lq1fiPQtYvyYWqQo5PUVY3l95VDsuIkIpVwIWV/PogU67mP+1Ru5es5O2rMQ/lFXbNIea+T8cZ/gsnN+7Al/YMSWA1YAjUYrSDkRHl98HY1tO/CZ4awBG0oJ8kJJlr83jN8vmIqWqkt026s1UAJiFv68BBdNO8Cc83eTn3eEfXUhDh6qoTg0i0kjZjBl7FjOHl5OSdHALEBTC2yvPcS6bdvYsGcVzdHlVJRvZGhVlPaOQSx9eyTL3qsm0eGHYPLovfV1/7ZEKMkn569l1rS9dESzF74QBik7QmnBGG6d+7zb2SQHzrk0YAVI7ywhJIeaN/L44o96vjc7YonO7mDtlgoeefYcIjEL6c/uXFxKjXIkxE2wHCaOauKCqQcYM/wAhtFOQ2OAxsYqcEYTCo5lUNFIBhdVMqhoEIUFeRSFQplYQWtNSzRKa1sHR1qOcLilniMtu4nGtoGxk9LSOspK4zhOPjtqq1m5tppNu0ogaUDARhoq+3tO+AgHk3zq+jVMHX8wK7PfNWpw8Yi3znuO8uKaE2ZcPyEFcINCl2J1Y+1TvLzqawT9Jf2CbSklCIeS7Ksv5OFnz2H//iKEl+JksxwiveuSJtgCKz/FmGEt1JzdwMghDRQWtCBFnFgC4jGL9lgQx/GjU13p6oSvA8NIkB+MEQgmCfpB6QCtbUXs3l/Gxu1l7NhbRLLdB6Z283Gp0Upkpe5CuKnykCEtfPr6NQytbCUStfp1KimEQSzRxDUzfkHN8Jsya39CVesTVYDOSrB0ww9Ysem+Tp3F2SuB37JJpgyeeqWGt94d5p6T9+MepBcjKEe6bWu2BJ8ilJekvDRKVVmE0uIIpQUxAv6US8XW6YpGgsQTPhrbgjQ2h6lrCHOoMUS0w4KUdDuifA7Sa9vqz2BnAeiEyczz9nLjVRuxfA6JpNkv4ac5f2dO/AZzJv1bToSfMwVwzajbrvXyqq+yofZJwoHB/cLxKS0whCYUSrJo+SiefLlmQGAJ0Tlg1MKdoOFI96XSQaA+noBBeamdR8ic7ncUhs5Qsnbfgt33zsc2uPXDG5g7o5ZY3Oc1xPRD+NJHJH6YScNv5poZ/5NZ61xcJjm6XNCj5kPn/YRoopHd9W8Q8mefGUihsZXEcSSHmkLgIXX7u+Bp/oL0LwqpwbCP5y3Qx6dlx73vpVwnitjRtkunr7ULUDUM1a+dH40fYVTlZXzovJ9k+glzdeWwoO7uLtPw89GZDzKi4hKiiUaPcj77WOC9zZUseXM0wm/3y8z2pRAuocXRl5tPH311+35OLKN7pPvS62PZsquMUDB7EIgUJtFEIyMqLuGjMx/ENNKMrOJMVAC8ZkyFzwwxf1YnJZC+Pgsupqloa/fz9CsTwOfwN8UiJTQIzWMvTiIa82EYfcPApPRlhD9/1oP4zJA3YyG3VU4JJHP6rB7+Pa0EIysvIRI/3Ksl0FoQsGz+9OdxNDfmIX3O3xT5pNYCaTk0HCxgwevjCAZ6j23cgO8wIyuPEf5JGLAlgYZO1vIkKMHD1Jx1E5FEg8vecYwGKyUIhZKs3ljFyvfOyilEuvspGgMIKHNyeCSQoSRvvj2cdVvLCQWPr3cIBFIYRBIN1Jx1E/NnPXxShY+bK1GbawXIKAEa0/Dz4Qt+yYUTvk402YRGZSLY9MyhppaQG/Wbud35OmVmcAcyM+Ymi5cndK0EOpW72UHacwdPvjKRSNTq4gqEMNAooskmLpzwdT58wS8xDb9L65J74adlfUACG0+GAmRiAg8vcPGku7l6+s/RQMqOIIWLebN8Nk+/Np62llDuINIaDENTVdFKyGMvUwkfKmqhIt4resyr888TPlCCUDBFZXl796NwTsAVHDlYwHOvjyXkuQIpTVJ2BA1cPf3nXDzp7nSx/WTR6qcfaIsJrAK+wEma4SEyw5YdJo24hbKi8by6+p+pb9xEeWmYN98bxpq1Q3Jm+oXQaNukvKyVb31uOe1RPy1tAVra/bR3+GmLWiQSJpGIRXpjaQXhcBK/36YglCQ/L0FRfoLiwhiWz+EHv7mIppZgThQ07QqWrRrOpDFHmDbxEIebWqksnciV039KRfGUTGf0SZypkH6KlSbwBtAGFHhviJOiBsJAacfrk3uev274D95493kef3EMZhAcnSu/746pqyiN4LccNEmKC2JHTbvoow7QiWUjZUt8PsXg0g6ajoRdF5WT5RGYluT3z42luOgAc6Z8nIsnfw+/Ly9nFb4sYj8b+IsphHhfa/0WcAXdEcnl8q96bdJ+Xx5XTLuPZORj/CG4kLr6Q4iCMMYAyRaP32ZQObgDITW2LVDK7PfOdZE4EPTbDClvZ+uWCgZUmTrmMqREaY3d3kJ+ZQUzxz3CFede7CmlOhXCV54CbALeTkcXf+QUjXFK09ArrfjwRRex9ulv87mb56ETSZyOWIZ1c+B+FjA0Q8rbXFoa2XnOYfavDMIZGFLe1jN3b9blXIFhSJyOGDqR5HM3X8K6p7/N1TMvRmXo7k4J0DW9w/4khLDTf/E54KCnGeoUqAFSSJRSlBUX8MB3/oElD9zJ3OljcVojqFhywIqglcAMpKgY1IFtn9jIV5cHWDJ4UMTlQh5AjJIWvIolcVojzJ0+liUP3MkD3/kHyooLXDDHqZtbqD0LHwUeBpBaa0MI0Qb8ipwYuf4sjsz0zl187tksfvAuHv3R56kZWekqQjSBlBLDyE6QQrhTSksLYxQVxLEdeUJ5vEBj25JBRVEK8hPuNM9sRrWBp8AuXt9pjVAzspJHf/R5Fj94Fxefe7ZHhqEHBOM6wd0vgMeEEHu11obQRxPvfGA9MMxTglN6Z45SHgxLkEjaPPbySn797FJWr9/j2vVwANOQKKV7JKlId9XUTKjnq7etJhr3nXAKpz1I+32PXMCOXWUuYKXHrh4Xpm47CiJxEILpk0fwxevncNs1F+C3TBdYqvXp6GtIs2BHgAnAAUCYQgidtgJa67uAp3HpNE/pHaYXxO2kNfns/Nl8Zv5sXli8lgcWLOO1t7dhN3dAwIcIWBhCoLRGq068Oh6bdnV5u3vcmoOcJn1OMaS8jR07uo51dwEpwoXLa42KJ1HxFGZBiA/Nm8Id8y/iI/OmZm4hDds2Tk+zq4N7+vs9IcR+T+aO6ZpO4Xg/eEZr/Rhwm5cmmKf6Lg0pPSZShWFIrps3levmTWXTrjqeeGU1zyxew9ZdddhJG/w+8Ps6dcEqNwCsaMtimEL/lKBqcHuGFUx4f89xFDqWRCVSYJmMG1XFDfPO4ZarpjNxVNXRlXdcxO5p7GZKC/8vwE+11kY61hNHH1Knwe4hYBkw9XQpwbGuQQiRwbsnUzYr1u7i+SXrWPTONjbXHkS1x0AK8PmQfoO7v/AWVWVRkikJQmWkqLMqeHrllwxeUBKwbHbtLebeB2eASkDSBqWR+UEmDK/gsvPGct3cKcycOgrL5y6X8uDkZ0ALm+MFfvuAGV6wL4RwF8Y8GkAJrbUWQogOrfX1wFKgutMXnJYrvYBp32/5TOZOH8vc6WNRSrFpVz0r1u5k2dqdrN50gLb4XkLBw7RFk4DLK2wI0yOXNjx+P9EtAiRNEevyEDo42kYph6TtkJ8fp7goTll+NdMnDOGiqaOZOXU0E0dVdgnkbEdlYgFOP69BWnYRYL4Qoj5t+jt7zWPWwf2A1noC8GdPCU67JehsjpVWXr2/6+5KpRz2Hz6IEltoat9BU/tu2qL7icQbSKTaSdod3iDlFLrLNBTtkkQbPqS0sMw8/L58woEyCkJDKMkfSUn+aKSewJDBFfh8XfeD4yivK0dyBnFZpGXWAVwnhHjjWOHTU4jUSQnGAAuAid4XGpxBc7/doQiuZRCCHs2to1LYTpx4spmUHSdpt2GrZKbWrtGY0sIyC/CZAQJWMaYRwOgByOKmcF48IM+4Kci6k8/fC9wghFjdnfDpTZidlKAUuB+4qZNmnVGK0Nk6uCdoqlMCIAfcK+jiZY9+l0ZmTbxwmgTfuZT/CvD5zhF/TzWL3hZApoMFrfXtwD1AeSdFkHwg5g/rTgLt+rPuluKownwgUEnKe6VddDPwA+AnnVJ8p7eiVV+7QKSjRq11BfBN4LNAYTf1ZfFBWbUP8KU7vToHI+24Zzr/5R3wic7R/oAV4FiX4P17KHCL5xamAL6/y+W07f51uGc5vxdC1B4rq2zK1v3xiV4tJKMIApgGXArMAiYDQ09n2vg3fjlePr8ZWAEsBt4S3oGHV+DRfe36ztf/D2q2wYQN1Mk1AAAAAElFTkSuQmCC" alt="Golfclub Bostalsee">
     </div>
     <div class="htitle">${title}</div>
@@ -461,6 +467,41 @@ function setupScreen(){
     ${bar(`<button class="btn primary" data-to="config">Weiter ›</button>`)}`;
 }
 
+/* Gemeinsamer HCP/Stroke-Index-Block für Netto-fähige Spielmodi */
+function siHcpFields(isNet, bruttoHint){
+  if(!isNet) return `<p class="hint">${bruttoHint}</p>`;
+  const siMap = getStrokeIndexMap(S.holes);
+  const used = new Set(siMap.filter(v=>Number.isInteger(v)));
+  const siRows = siMap.map((si,i)=>{
+    const options = makeRange(S.holes)
+      .filter(v=>v===si || !used.has(v))
+      .map(v=>`<option value="${v}" ${v===si?"selected":""}>${v}</option>`)
+      .join("");
+    return `
+      <div class="si-cell">
+        <span>Bahn ${i+1}</span>
+        <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
+          <option value="" ${si==null?"selected":""}>—</option>
+          ${options}
+        </select>
+      </div>`;
+  }).join("");
+  const hcpRows = S.players.map((p,i)=>`
+      <div class="vscore">
+        <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
+        <input type="number" data-hcp="${i}" value="${Number(p.hcp)||0}" min="0" max="54" step="1" aria-label="HCP Spieler ${i+1}">
+      </div>`).join("");
+  return `
+      <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
+        <p class="hint">9 Loch: Rundenvorgabe = halbes HCP (gerundet).</p>
+      </div>
+      <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
+        <div class="si-grid">${siRows}</div>
+        <button class="pick muted wide" data-si-reset style="margin-top:8px">Alle SI leeren</button>
+        <p class="hint">Dropdown zeigt pro Bahn nur noch verfügbare SI-Werte.</p>
+      </div>`;
+}
+
 function configScreen(){
   const g = GAMES[S.game];
   let extra = "";
@@ -488,7 +529,6 @@ function configScreen(){
       </div>`;
   }
   if(S.game==="vegas"){
-    const names = S.players.map(p=>p.name);
     const teamPick = S.players.map((p,i)=>`
       <div class="vscore">
         <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
@@ -510,36 +550,7 @@ function configScreen(){
       </div>`;
   }
   if(S.game==="aggregat"){
-    const siMap = getStrokeIndexMap(S.holes);
-    const used = new Set(siMap.filter(v=>Number.isInteger(v)));
-    const siRows = siMap.map((si,i)=>{
-      const options = makeRange(S.holes)
-        .filter(v=>v===si || !used.has(v))
-        .map(v=>`<option value="${v}" ${v===si?"selected":""}>${v}</option>`)
-        .join("");
-      return `
-      <div class="si-cell">
-        <span>Bahn ${i+1}</span>
-        <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
-          <option value="" ${si==null?"selected":""}>—</option>
-          ${options}
-        </select>
-      </div>`;
-    }).join("");
-    const hcpRows = S.players.map((p,i)=>`
-      <div class="vscore">
-        <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
-        <input type="number" data-hcp="${i}" value="${Number(p.hcp)||0}" min="0" max="54" step="1" aria-label="HCP Spieler ${i+1}">
-      </div>`).join("");
-    const netOnlyFields = S.cfg.aggregatNet ? `
-      <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
-        <p class="hint">9 Loch: Rundenvorgabe = halbes HCP (gerundet).</p>
-      </div>
-      <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
-        <div class="si-grid">${siRows}</div>
-        <button class="pick muted wide" data-si-reset style="margin-top:8px">Alle SI leeren</button>
-        <p class="hint">Dropdown zeigt pro Bahn nur noch verfügbare SI-Werte.</p>
-      </div>` : `<p class="hint">Bei Brutto-Aggregat sind keine HCP- oder Stroke-Index-Angaben nötig.</p>`;
+    const netOnlyFields = siHcpFields(S.cfg.aggregatNet, "Bei Brutto-Aggregat sind keine HCP- oder Stroke-Index-Angaben nötig.");
     const teamPick = S.players.map((p,i)=>`
       <div class="vscore">
         <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
@@ -568,36 +579,7 @@ function configScreen(){
       ${netOnlyFields}`;
   }
   if(S.game==="skins"){
-    const siMap = getStrokeIndexMap(S.holes);
-    const used = new Set(siMap.filter(v=>Number.isInteger(v)));
-    const siRows = siMap.map((si,i)=>{
-      const options = makeRange(S.holes)
-        .filter(v=>v===si || !used.has(v))
-        .map(v=>`<option value="${v}" ${v===si?"selected":""}>${v}</option>`)
-        .join("");
-      return `
-      <div class="si-cell">
-        <span>Bahn ${i+1}</span>
-        <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
-          <option value="" ${si==null?"selected":""}>—</option>
-          ${options}
-        </select>
-      </div>`;
-    }).join("");
-    const hcpRows = S.players.map((p,i)=>`
-      <div class="vscore">
-        <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
-        <input type="number" data-hcp="${i}" value="${Number(p.hcp)||0}" min="0" max="54" step="1" aria-label="HCP Spieler ${i+1}">
-      </div>`).join("");
-    const netOnlyFields = S.cfg.skinsNet ? `
-      <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
-        <p class="hint">9 Loch: Rundenvorgabe = halbes HCP (gerundet).</p>
-      </div>
-      <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
-        <div class="si-grid">${siRows}</div>
-        <button class="pick muted wide" data-si-reset style="margin-top:8px">Alle SI leeren</button>
-        <p class="hint">Dropdown zeigt pro Bahn nur noch verfügbare SI-Werte.</p>
-      </div>` : `<p class="hint">Bei Brutto-Skins sind keine HCP- oder Stroke-Index-Angaben nötig.</p>`;
+    const netOnlyFields = siHcpFields(S.cfg.skinsNet, "Bei Brutto-Skins sind keine HCP- oder Stroke-Index-Angaben nötig.");
     extra += `
       <div class="field"><label class="fl">Skins-Wertung</label>
         <div class="seg" style="margin-bottom:10px">
@@ -609,36 +591,7 @@ function configScreen(){
       ${netOnlyFields}`;
   }
   if(S.game==="matchplay"){
-    const siMap = getStrokeIndexMap(S.holes);
-    const used = new Set(siMap.filter(v=>Number.isInteger(v)));
-    const siRows = siMap.map((si,i)=>{
-      const options = makeRange(S.holes)
-        .filter(v=>v===si || !used.has(v))
-        .map(v=>`<option value="${v}" ${v===si?"selected":""}>${v}</option>`)
-        .join("");
-      return `
-      <div class="si-cell">
-        <span>Bahn ${i+1}</span>
-        <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
-          <option value="" ${si==null?"selected":""}>&#8212;</option>
-          ${options}
-        </select>
-      </div>`;
-    }).join("");
-    const hcpRows = S.players.map((p,i)=>`
-      <div class="vscore">
-        <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
-        <input type="number" data-hcp="${i}" value="${Number(p.hcp)||0}" min="0" max="54" step="1" aria-label="HCP Spieler ${i+1}">
-      </div>`).join("");
-    const netOnlyFields = S.cfg.matchplayNet ? `
-      <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
-        <p class="hint">9 Loch: Rundenvorgabe = halbes HCP (gerundet).</p>
-      </div>
-      <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
-        <div class="si-grid">${siRows}</div>
-        <button class="pick muted wide" data-si-reset style="margin-top:8px">Alle SI leeren</button>
-        <p class="hint">Dropdown zeigt pro Bahn nur noch verf&uuml;gbare SI-Werte.</p>
-      </div>` : `<p class="hint">Bei Brutto-Matchplay sind keine HCP- oder Stroke-Index-Angaben n&ouml;tig.</p>`;
+    const netOnlyFields = siHcpFields(S.cfg.matchplayNet, "Bei Brutto-Matchplay sind keine HCP- oder Stroke-Index-Angaben nötig.");
     extra = `
       <div class="field"><label class="fl">Matchplay-Wertung</label>
         <div class="seg" style="margin-bottom:10px">
@@ -649,7 +602,7 @@ function configScreen(){
       </div>
       ${netOnlyFields}`;
   }
-  if(["bbb","wolf","vegas","aggregat","skins","matchplay"].includes(S.game)){
+  {
     extra += `
       <div class="field"><label class="fl">Zusätzliche Wertung</label>
         <div class="seg">
@@ -728,11 +681,24 @@ function miniBoard(){
   const t = totals();
   const max = Math.max(...t, 0);
   const order = S.players.map((p,i)=>({p,i})).sort((a,b)=>t[b.i]-t[a.i]);
-  const chips = order.map(({p,i})=>`
+  const chips = order.map(({p,i})=>{
+    let val = fmtPts(t[i]);
+    if(S.game==="matchplay"){
+      const {diff} = matchplayState();
+      const rel = i===0?diff:-diff;
+      val = rel===0?"AS":(rel>0?`+${rel}`:String(rel));
+    } else if(S.game==="vegas"||S.game==="aggregat"){
+      const team=[0,0];
+      Object.values(S.results).forEach(r=>{ if(r.tpts){ team[0]+=r.tpts[0]; team[1]+=r.tpts[1]; } });
+      const d=team[S.teams[i]]-team[1-S.teams[i]];
+      val=d===0?"0":(d>0?`+${d}`:String(d));
+    }
+    return `
     <div class="chip ${t[i]===max&&max>0?"lead":""}">
       <div class="cn">${escHtml(p.name||("Sp."+(i+1)))}</div>
-      <div class="cp">${fmtPts(t[i])}</div>
-    </div>`).join("");
+      <div class="cp">${val}</div>
+    </div>`;
+  }).join("");
   return `<div class="mini">${chips}</div>`;
 }
 
@@ -760,7 +726,7 @@ function playScreen(){
   const cta = last
     ? `<button class="btn primary" data-summary>Abrechnung ›</button>`
     : `<button class="btn primary" data-next>Loch abschließen ›</button>`;
-  return `${header(g.name, null, {back:"config", mini})}
+  return `${header(g.name, null, {back:"config", mini, backLabel:"Setup"})}
     <main>${body}</main>
     ${bar(navHtml + cta)}`;
 }
@@ -780,11 +746,11 @@ function bbbHole(h){
   };
   const grossRows = S.players.map((p,i)=>scoreStepper(i,"data-bstep",(r.scores||[])[i])).join("");
   const grossBox = S.cfg.showGross ? `
-    <div class="divider"></div>
-    <div class="field" style="margin-top:10px">
-      <label class="fl">Brutto-Scores · Bahn ${h}</label>
-      ${grossRows}
-    </div>` : "";
+    <div class="divider" style="margin-top:8px"></div>
+    <details style="margin-top:6px">
+      <summary>Brutto-Scores · Bahn ${h}</summary>
+      <div style="margin-top:8px">${grossRows}</div>
+    </details>` : "";
   return `<div class="panel">
     <div class="holebar"><span class="holetag">Loch ${h}</span></div>
     ${line("bingo","Bingo","erster aufs Grün")}
@@ -829,9 +795,14 @@ function wolfHole(h){
       <label class="fl">Brutto-Scores · Bahn ${h}</label>
       ${grossRows}
     </div>` : "";
+  const rotHtml = order.map((i,pos)=>
+    (pos>0?`<span style="color:var(--line);margin:0 3px">›</span>`:"")+
+    `<b style="${i===wolf?"color:var(--navy)":"color:var(--ink-soft);font-weight:400"}">${escHtml(nm(i))}</b>`
+  ).join("");
   return `<div class="panel">
     <div class="holebar"><span class="holetag">Loch ${h}</span><span class="badge tag-wolf">🐺 Wolf: ${escHtml(nm(wolf))}</span></div>
-    <div class="field" style="margin-top:6px">
+    <div style="font-size:11.5px;margin:4px 0 12px">${rotHtml}</div>
+    <div class="field">
       <label class="fl">${escHtml(nm(wolf))} entscheidet</label>
       <div class="grid">
         ${partnerBtns}
@@ -841,7 +812,6 @@ function wolfHole(h){
     </div>
     ${outcome}
     ${grossBox}
-    <p class="hint">Reihenfolge = Wolf-Rotation: ${order.map(i=>escHtml(nm(i))).join(" → ")} → …</p>
   </div>`;
 }
 function wolfComputePts(h){
@@ -972,10 +942,6 @@ function aggregatCompute(h,r,par){
     sumLabel:S.cfg.aggregatNet?"Netto-Team-Summe":"Team-Summe"
   };
 }
-function readAggregatScores(h){
-  const r=S.results[h]||(S.results[h]={scores:S.players.map(()=>"")});
-  document.querySelectorAll("[data-agg]").forEach(inp=>{ const i=+inp.dataset.agg; r.scores[i]=inp.value===""?"":Number(inp.value); });
-}
 function finalizeAggregat(h){
   const r=S.results[h]; if(!r) return;
   const par=(r.par!=null?r.par:S.par);
@@ -1033,19 +999,17 @@ function skinsHole(h){
     ${netHint}
   </div>`;
 }
-function readSkinsScores(h){
-  const r=S.results[h]||(S.results[h]={scores:S.players.map(()=>"")});
-  document.querySelectorAll("[data-skin]").forEach(inp=>{ const i=+inp.dataset.skin; r.scores[i]=inp.value===""?"":Number(inp.value); });
-}
 
 /* --- Matchplay (Loch-für-Loch-Duell) --- */
 function matchplayState(){
   const pts = [0, 0];
+  let holesPlayed = 0;
   for(let h=1; h<=S.holes; h++){
     const r = S.results[h];
     if(!r || !r.scores) continue;
     const complete = S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
     if(!complete) continue;
+    holesPlayed++;
     const grossVals = S.players.map((_,i)=>Number(r.scores[i]));
     const vals = S.cfg.matchplayNet
       ? S.players.map((_,i)=>grossVals[i]-hcpStrokesForHole(i,h))
@@ -1053,7 +1017,10 @@ function matchplayState(){
     if(vals[0]<vals[1]) pts[0]++;
     else if(vals[1]<vals[0]) pts[1]++;
   }
-  return {pts, diff: pts[0]-pts[1]};
+  const diff = pts[0]-pts[1];
+  const holesLeft = S.holes - holesPlayed;
+  const up = Math.abs(diff);
+  return {pts, diff, holesLeft, leader:diff>0?0:diff<0?1:-1, closed:up>holesLeft&&up>0, dormie:up===holesLeft&&up>0};
 }
 function matchplayHole(h){
   const r = S.results[h]||(S.results[h]={scores:S.players.map(()=>"")});
@@ -1076,10 +1043,15 @@ function matchplayHole(h){
     else                     holeRes = `<div class="vresult"><span>Loch ${h}</span><b class="big">Gleichstand (Half)</b></div>`;
   }
   const st = matchplayState();
-  const diff = st.diff;
-  const statusTxt = diff===0 ? "All Square"
-    : `${escHtml(nm(diff>0?0:1))} ${Math.abs(diff)} up`;
-  const statusBox = `<div class="vresult" style="margin-top:8px"><span>Match-Stand</span><b class="big">${statusTxt}</b></div>`;
+  let statusTxt, statusBg="";
+  if(st.diff===0) statusTxt="All Square";
+  else {
+    const up=Math.abs(st.diff), ldr=escHtml(nm(st.leader));
+    if(st.closed)      { statusTxt=`🏆 ${ldr} gewinnt`; statusBg=";background:var(--turf-soft)"; }
+    else if(st.dormie) { statusTxt=`${ldr} – Dormie ${up}`; statusBg=";background:var(--lime-soft)"; }
+    else                 statusTxt=`${ldr} ${up} up`;
+  }
+  const statusBox = `<div class="vresult" style="margin-top:8px${statusBg}"><span>Match-Stand</span><b class="big">${statusTxt}</b></div>`;
   const netHint = S.cfg.matchplayNet
     ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((_,i)=>`${escHtml(nm(i))} -${hcpStrokesForHole(i,h)}`).join(" · ")}</p>`
     : "";
@@ -1116,17 +1088,11 @@ function summaryScreen(){
   if(S.game==="skins"){ const c=skinsState().carried; if(c>0) voided=`<p class="hint">${c} Skin${c>1?"s":""} nicht gewonnen (Gleichstand am letzten Loch) – verfallen.</p>`; }
   if(S.game==="matchplay"){
     const st = matchplayState();
-    const diff = st.diff;
-    const holesPlayed = Object.keys(S.results).filter(h=>{
-      const r=S.results[h]; return r&&r.scores&&S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
-    }).length;
-    const holesLeft = S.holes - holesPlayed;
-    if(diff===0) voided = `<p class="hint">Match endet All Square.</p>`;
+    if(st.diff===0) voided=`<p class="hint">Match endet All Square.</p>`;
     else {
-      const leader = diff>0?0:1;
-      const up = Math.abs(diff);
-      const resultStr = holesLeft===0 ? (up===1?"1 up":`${up} up`) : `${up} \u0026 ${holesLeft}`;
-      voided = `<p class="hint">🏆 ${escHtml(nm(leader))} gewinnt ${resultStr}</p>`;
+      const up=Math.abs(st.diff);
+      const resultStr = st.holesLeft===0 ? (up===1?"1 up":`${up} up`) : `${up} & ${st.holesLeft}`;
+      voided=`<p class="hint">🏆 ${escHtml(nm(st.leader))} gewinnt ${resultStr}</p>`;
     }
   }
   let settle="";
@@ -1208,11 +1174,6 @@ function escAttr(s){ return escHtml(s).replace(/"/g,"&quot;"); }
 
 /* ============================ Event wiring ============================ */
 function readNames(){ document.querySelectorAll("[data-name]").forEach(inp=>{ S.players[+inp.dataset.name].name = inp.value.trim(); }); }
-function readVegasScores(h){
-  const r = S.results[h] || (S.results[h]={scores:S.players.map(()=>"")});
-  document.querySelectorAll("[data-vegas]").forEach(inp=>{ const i=+inp.dataset.vegas; r.scores[i] = inp.value===""?"":Number(inp.value); });
-}
-
 function wire(){
   const app = document.getElementById("app");
 
@@ -1265,7 +1226,7 @@ function wire(){
     else if(k==="matchplayNet") S.cfg.matchplayNet=(v==="1");
     persist(); render();
   });
-  app.querySelectorAll("[data-hcp]").forEach(inp=>inp.onchange=()=>{
+  app.querySelectorAll("[data-hcp]").forEach(inp=>inp.oninput=()=>{
     const i = Number(inp.dataset.hcp);
     S.players[i].hcp = Math.max(0, Math.min(54, Number(inp.value)||0));
     store.set(HKEY, S.players.map(p=>Math.max(0, Math.min(54, Number(p.hcp)||0))));
@@ -1353,15 +1314,17 @@ function wire(){
   });
   parAdjust("data-vpar"); parAdjust("data-apar"); parAdjust("data-mppar");
 
-  // Score-Stepper (Vegas/Aggregat): leer -> Par als Basis, sonst ±1
-  const scoreAdjust = (attr)=> app.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{
+  // Score-Stepper: leer -> Par (par-basiert) oder 4 (gross-basiert) als Startwert, dann ±1
+  const scoreAdjust = (attr, initFromPar=true)=> app.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{
     const [i,d]=b.getAttribute(attr).split(":").map(Number); const h=S.currentHole;
     const r=S.results[h]||(S.results[h]={scores:S.players.map(()=>"")});
-    const par=(r.par!=null?r.par:S.par);
-    let cur=(r.scores[i]===""||r.scores[i]==null)?par:Number(r.scores[i]);
+    if(!Array.isArray(r.scores)) r.scores=S.players.map(()=>"");
+    const def = initFromPar ? (r.par!=null?r.par:S.par) : 4;
+    const cur=(r.scores[i]===""||r.scores[i]==null)?def:Number(r.scores[i]);
     r.scores[i]=Math.min(15,Math.max(1,cur+d)); persist(); render();
   });
   scoreAdjust("data-vstep"); scoreAdjust("data-astep"); scoreAdjust("data-mpstep");
+  scoreAdjust("data-bstep", false); scoreAdjust("data-wstep", false);
 
   // Skins-Stepper: leer -> erster Tap setzt 4, dann ±1
   app.querySelectorAll("[data-sstep]").forEach(b=>b.onclick=()=>{
@@ -1372,20 +1335,8 @@ function wire(){
     persist(); render();
   });
 
-  // BBB/Wolf Brutto-Stepper: leer -> erster Tap setzt 4, dann ±1
-  const grossAdjust = (attr)=> app.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{
-    const [i,d]=b.getAttribute(attr).split(":").map(Number); const h=S.currentHole;
-    const r=S.results[h]||(S.results[h]={});
-    if(!Array.isArray(r.scores)) r.scores=S.players.map(()=>"");
-    if(r.scores[i]===""||r.scores[i]==null){ r.scores[i]=4; }
-    else { r.scores[i]=Math.min(15,Math.max(1,Number(r.scores[i])+d)); }
-    persist(); render();
-  });
-  grossAdjust("data-bstep");
-  grossAdjust("data-wstep");
-
   const nr=app.querySelector("[data-newround]");
-  if(nr) nr.onclick=()=>{ store.del(SKEY); S=null; render(homeScreen(null)); };
+  if(nr) nr.onclick=()=>{ if(!confirm("Aktuelle Runde wirklich beenden?")) return; store.del(SKEY); S=null; render(homeScreen(null)); };
 }
 
 function finalizeWolf(h){ const c=wolfComputePts(h); if(!c) return; const r=S.results[h]; r.pts=c.pts;
@@ -1399,11 +1350,9 @@ function finalizeVegas(h){ const r=S.results[h]; if(!r) return; const par=(r.par
 }
 function finalizeCurrent(){
   const h=S.currentHole;
-  if(S.game==="vegas"){ readVegasScores(h); finalizeVegas(h); }
-  else if(S.game==="aggregat"){ readAggregatScores(h); finalizeAggregat(h); }
-  else if(S.game==="skins"){ readSkinsScores(h); }
-  else if(S.game==="wolf"){ finalizeWolf(h); }
-  // bbb: Totals werden live aus results berechnet, kein Finalize nötig
+  if(S.game==="vegas") finalizeVegas(h);
+  else if(S.game==="aggregat") finalizeAggregat(h);
+  else if(S.game==="wolf") finalizeWolf(h);
 }
 
 boot();
