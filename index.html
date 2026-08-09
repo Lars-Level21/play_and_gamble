@@ -468,7 +468,7 @@ function setupScreen(){
 }
 
 /* Gemeinsamer HCP/Stroke-Index-Block für Netto-fähige Spielmodi */
-function siHcpFields(isNet, bruttoHint){
+function siHcpFields(isNet, bruttoHint, hcpNote="9 Loch: Rundenvorgabe = halbes HCP (gerundet)."){
   if(!isNet) return `<p class="hint">${bruttoHint}</p>`;
   const siMap = getStrokeIndexMap(S.holes);
   const used = new Set(siMap.filter(v=>Number.isInteger(v)));
@@ -481,7 +481,7 @@ function siHcpFields(isNet, bruttoHint){
       <div class="si-cell">
         <span>Bahn ${i+1}</span>
         <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
-          <option value="" ${si==null?"selected":""}>—</option>
+          <option value="" ${si==null?"selected": ""}>\u2014</option>
           ${options}
         </select>
       </div>`;
@@ -493,7 +493,7 @@ function siHcpFields(isNet, bruttoHint){
       </div>`).join("");
   return `
       <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
-        <p class="hint">9 Loch: Rundenvorgabe = halbes HCP (gerundet).</p>
+        <p class="hint">${hcpNote}</p>
       </div>
       <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
         <div class="si-grid">${siRows}</div>
@@ -591,7 +591,8 @@ function configScreen(){
       ${netOnlyFields}`;
   }
   if(S.game==="matchplay"){
-    const netOnlyFields = siHcpFields(S.cfg.matchplayNet, "Bei Brutto-Matchplay sind keine HCP- oder Stroke-Index-Angaben nötig.");
+    const netOnlyFields = siHcpFields(S.cfg.matchplayNet, "Bei Brutto-Matchplay sind keine HCP- oder Stroke-Index-Angaben nötig.",
+      "Matchplay-Vorgabe: |PHCP A – PHCP B| ÷ 2 (18 Loch) bzw. ÷ 4 (9 Loch), aufgerundet. Der Spieler mit höherem PHCP erhält diese Schläge auf den Bahnen mit dem niedrigsten SI.");
     extra = `
       <div class="field"><label class="fl">Matchplay-Wertung</label>
         <div class="seg" style="margin-bottom:10px">
@@ -686,7 +687,7 @@ function miniBoard(){
     if(S.game==="matchplay"){
       const {diff} = matchplayState();
       const rel = i===0?diff:-diff;
-      val = rel===0?"AS":(rel>0?`+${rel}`:String(rel));
+      val = rel===0?"AS":(rel>0?`${rel} up`:`${Math.abs(rel)} down`);
     } else if(S.game==="vegas"||S.game==="aggregat"){
       const team=[0,0];
       Object.values(S.results).forEach(r=>{ if(r.tpts){ team[0]+=r.tpts[0]; team[1]+=r.tpts[1]; } });
@@ -1001,6 +1002,22 @@ function skinsHole(h){
 }
 
 /* --- Matchplay (Loch-für-Loch-Duell) --- */
+function matchplayHandicapStrokes(){
+  const hcpA = Math.max(0, Number(S.players[0]?.hcp) || 0);
+  const hcpB = Math.max(0, Number(S.players[1]?.hcp) || 0);
+  const diff = Math.abs(hcpA - hcpB);
+  const divisor = S.holes === 18 ? 2 : 4;
+  const strokes = Math.ceil(diff / divisor);
+  const weakerIdx = hcpA > hcpB ? 0 : hcpA < hcpB ? 1 : -1;
+  return {weakerIdx, strokes};
+}
+function matchplayStrokesOnHole(h){
+  const {weakerIdx, strokes} = matchplayHandicapStrokes();
+  if(weakerIdx < 0 || strokes === 0) return [0, 0];
+  const si = effectiveStrokeIndexMap(S.holes)[h - 1];
+  const gets = si <= strokes ? 1 : 0;
+  return weakerIdx === 0 ? [gets, 0] : [0, gets];
+}
 function matchplayState(){
   const pts = [0, 0];
   let holesPlayed = 0;
@@ -1012,7 +1029,7 @@ function matchplayState(){
     holesPlayed++;
     const grossVals = S.players.map((_,i)=>Number(r.scores[i]));
     const vals = S.cfg.matchplayNet
-      ? S.players.map((_,i)=>grossVals[i]-hcpStrokesForHole(i,h))
+      ? (()=>{ const s=matchplayStrokesOnHole(h); return S.players.map((_,i)=>grossVals[i]-s[i]); })()
       : grossVals;
     if(vals[0]<vals[1]) pts[0]++;
     else if(vals[1]<vals[0]) pts[1]++;
@@ -1027,17 +1044,16 @@ function matchplayHole(h){
   const par = (r.par!=null?r.par:S.par);
   if(!r.prefilled){ S.players.forEach((_,i)=>{ if(r.scores[i]===""||r.scores[i]==null) r.scores[i]=par; }); r.prefilled=true; persist(); }
   const rows = S.players.map((_,i)=>{
-    const vg = S.cfg.matchplayNet ? hcpStrokesForHole(i,h) : 0;
-    const label = S.cfg.matchplayNet && vg>0 ? `${nm(i)} (-${vg})` : nm(i);
+    const holeS = S.cfg.matchplayNet ? matchplayStrokesOnHole(h) : [0,0];
+    const label = holeS[i]>0 ? `${nm(i)} (-1)` : nm(i);
     return scoreStepper(i,"data-mpstep",r.scores[i],label);
   }).join("");
   const complete = S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
   let holeRes = `<p class="hint">Scores eingeben für das Loch-Ergebnis.</p>`;
   if(complete){
     const grossVals = S.players.map((_,i)=>Number(r.scores[i]));
-    const vals = S.cfg.matchplayNet
-      ? S.players.map((_,i)=>grossVals[i]-hcpStrokesForHole(i,h))
-      : grossVals;
+    const holeS = S.cfg.matchplayNet ? matchplayStrokesOnHole(h) : [0,0];
+    const vals = S.players.map((_,i)=>grossVals[i]-holeS[i]);
     if(vals[0]<vals[1])      holeRes = `<div class="vresult" style="background:var(--turf-soft)"><span>Loch ${h} gewonnen</span><b class="big">${escHtml(nm(0))}</b></div>`;
     else if(vals[1]<vals[0]) holeRes = `<div class="vresult" style="background:var(--turf-soft)"><span>Loch ${h} gewonnen</span><b class="big">${escHtml(nm(1))}</b></div>`;
     else                     holeRes = `<div class="vresult"><span>Loch ${h}</span><b class="big">Gleichstand (Half)</b></div>`;
@@ -1052,9 +1068,14 @@ function matchplayHole(h){
     else                 statusTxt=`${ldr} ${up} up`;
   }
   const statusBox = `<div class="vresult" style="margin-top:8px${statusBg}"><span>Match-Stand</span><b class="big">${statusTxt}</b></div>`;
-  const netHint = S.cfg.matchplayNet
-    ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((_,i)=>`${escHtml(nm(i))} -${hcpStrokesForHole(i,h)}`).join(" · ")}</p>`
-    : "";
+  const netHint = (() => {
+    if(!S.cfg.matchplayNet) return "";
+    const {weakerIdx, strokes} = matchplayHandicapStrokes();
+    if(weakerIdx < 0) return `<p class="hint">Beide Spieler gleich stark – keine Vorgabe.</p>`;
+    const holeS = matchplayStrokesOnHole(h);
+    const gets = holeS[weakerIdx] > 0 ? ` · Bahn ${h}: Schlag` : "";
+    return `<p class="hint">Matchplay-Vorgabe: ${escHtml(nm(weakerIdx))} erhält ${strokes} Schlag${strokes!==1?"e":""} (SI 1\u2013${strokes})${gets}</p>`;
+  })();
   return `<div class="panel">
     <div class="holebar"><span class="holetag">Loch ${h}</span>${parStepper(par,"data-mppar")}</div>
     ${rows}

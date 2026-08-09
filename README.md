@@ -4,20 +4,22 @@ Eine Progressive Web App (PWA) für Golf-Zockformate. Läuft vollständig im Bro
 
 ## Unterstützte Formate
 
-| Format | Spieler | Beschreibung |
-|---|---|---|
-| **Bingo Bango Bongo** | 2–8 | 3 Punkte je Loch: erster aufs Grün, näher zur Fahne, erster eingelocht |
-| **Wolf** | 3–5 | Rotierender Wolf wählt Partner oder spielt allein gegen den Rest |
-| **Vegas** | 4 (2×2) | Schläge werden zur zweistelligen Zahl kombiniert – Differenz zählt |
-| **Aggregat** | 4 (2×2) | Bester Einzelscore und niedrigere Team-Summe je ein Punkt |
-| **Skins** | 2–8 | Niedrigster Score gewinnt das Loch – Gleichstand lässt den Skin wandern |
+| Format | Spieler | Modus | Beschreibung |
+|---|---|---|---|
+| **Bingo Bango Bongo** | 2–4 | Brutto | 3 Punkte je Loch: erster aufs Grün, näher zur Fahne, erster eingelocht |
+| **Wolf** | 3–4 | Brutto | Rotierender Wolf wählt Partner oder spielt allein gegen den Rest |
+| **Vegas** | 4 (2×2) | Brutto | Schläge werden zur zweistelligen Zahl kombiniert – Differenz zählt |
+| **Aggregat** | 4 (2×2) | Brutto / Netto | Bester Einzelscore und niedrigere Team-Summe je ein Punkt |
+| **Skins** | 2–4 | Brutto / Netto | Niedrigster Score gewinnt das Loch – Gleichstand lässt den Skin wandern |
+| **Matchplay** | 2 | Brutto / Netto | Loch-für-Loch-Duell; zeigt Dormie und „Match entschieden" automatisch an |
 
 ## Features
 
 - Spieleranzahl und Namen frei wählbar (werden lokal gespeichert)
 - Einsatz in € konfigurierbar – automatische Netto-Abrechnung am Ende
-- Live-Leaderboard im Header während der Runde
+- Live-Leaderboard im Header: relative Differenz statt Absolutwerte (Matchplay: AS/+2/−2; Vegas/Aggregat: Teamdifferenz)
 - Unterbrochene Runden werden automatisch gespeichert und können fortgesetzt werden
+- Netto-Modus (Aggregat, Skins, Matchplay) mit Playing HCP und Stroke-Index-Konfiguration je Bahn
 - Installierbar als PWA (Home-Screen-Icon, Offline-Betrieb via Service Worker)
 - Keine Abhängigkeiten, kein Build-Schritt – eine einzige `index.html`
 
