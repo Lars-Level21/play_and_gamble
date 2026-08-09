@@ -97,6 +97,8 @@
   .gcard.vegas .gicon{background:#E5E7E9}
   .gcard.wolf{border-left-color:#6B7787}
   .gcard.wolf .gicon{background:#E7EAEE}
+  .gcard.matchplay{border-left-color:#7B4FAA}
+  .gcard.matchplay .gicon{background:#EFE5F8}
   .gcard .gt{font-weight:800; font-size:16px}
   .gcard .gd{font-size:12.5px; color:var(--ink-soft); margin-top:2px}
   /* panels */
@@ -286,7 +288,9 @@ const GAMES = {
   aggregat:{name:"Aggregat",       icon:"➕", cls:"aggregat", min:4, max:4, defP:4,
           desc:"2 Teams: bester Einzelscore und niedrigere Team-Summe geben je einen Punkt."},
   skins: {name:"Skins",            icon:"🪙", cls:"skins", min:2, max:8, defP:4,
-          desc:"Niedrigster Score gewinnt das Loch. Gleichstand → der Skin wandert weiter."}
+          desc:"Niedrigster Score gewinnt das Loch. Gleichstand → der Skin wandert weiter."},
+  matchplay:{name:"Matchplay",        icon:"⚔️", cls:"matchplay", min:2, max:2, defP:2,
+          desc:"Loch-für-Loch-Duell: wer das Loch gewinnt, geht 'up'. Am Ende gewinnt, wer öfter vorne liegt."}
 };
 let S = null;
 
@@ -349,6 +353,7 @@ function freshState(game){
   };
   if(game==="vegas"||game==="aggregat"){ base.teams=[0,0,1,1]; base.par=4; }
   if(game==="wolf"){ base.order=null; }
+  if(game==="matchplay"){ base.par=4; }
   return base;
 }
 function defaultCfg(game){
@@ -357,6 +362,7 @@ function defaultCfg(game){
   if(game==="vegas") return {flip:true, cap:9, showGross:false};
   if(game==="aggregat") return {birdieDouble:false, showGross:false, aggregatNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
   if(game==="skins") return {showGross:false, skinsNet:false, si9:makeRange(9), si18:makeRange(18)};
+  if(game==="matchplay") return {showGross:false, matchplayNet:false, si9:makeRange(9), si18:makeRange(18)};
   return {};
 }
 
@@ -602,7 +608,48 @@ function configScreen(){
       </div>
       ${netOnlyFields}`;
   }
-  if(["bbb","wolf","vegas","aggregat","skins"].includes(S.game)){
+  if(S.game==="matchplay"){
+    const siMap = getStrokeIndexMap(S.holes);
+    const used = new Set(siMap.filter(v=>Number.isInteger(v)));
+    const siRows = siMap.map((si,i)=>{
+      const options = makeRange(S.holes)
+        .filter(v=>v===si || !used.has(v))
+        .map(v=>`<option value="${v}" ${v===si?"selected":""}>${v}</option>`)
+        .join("");
+      return `
+      <div class="si-cell">
+        <span>Bahn ${i+1}</span>
+        <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
+          <option value="" ${si==null?"selected":""}>&#8212;</option>
+          ${options}
+        </select>
+      </div>`;
+    }).join("");
+    const hcpRows = S.players.map((p,i)=>`
+      <div class="vscore">
+        <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
+        <input type="number" data-hcp="${i}" value="${Number(p.hcp)||0}" min="0" max="54" step="1" aria-label="HCP Spieler ${i+1}">
+      </div>`).join("");
+    const netOnlyFields = S.cfg.matchplayNet ? `
+      <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
+        <p class="hint">9 Loch: Rundenvorgabe = halbes HCP (gerundet).</p>
+      </div>
+      <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
+        <div class="si-grid">${siRows}</div>
+        <button class="pick muted wide" data-si-reset style="margin-top:8px">Alle SI leeren</button>
+        <p class="hint">Dropdown zeigt pro Bahn nur noch verf&uuml;gbare SI-Werte.</p>
+      </div>` : `<p class="hint">Bei Brutto-Matchplay sind keine HCP- oder Stroke-Index-Angaben n&ouml;tig.</p>`;
+    extra = `
+      <div class="field"><label class="fl">Matchplay-Wertung</label>
+        <div class="seg" style="margin-bottom:10px">
+          <button data-seg="matchplayNet:0" class="${!S.cfg.matchplayNet?"on":""}">Brutto-Matchplay</button>
+          <button data-seg="matchplayNet:1" class="${S.cfg.matchplayNet?"on":""}">Netto-Matchplay (HCP)</button>
+        </div>
+        <p class="hint">Bei Netto werden pro Bahn Vorgabeschl&auml;ge ber&uuml;cksichtigt.</p>
+      </div>
+      ${netOnlyFields}`;
+  }
+  if(["bbb","wolf","vegas","aggregat","skins","matchplay"].includes(S.game)){
     extra += `
       <div class="field"><label class="fl">Zusätzliche Wertung</label>
         <div class="seg">
@@ -647,6 +694,8 @@ function totals(){
     S.players.forEach((p,i)=>{ t[i]=team[S.teams[i]]; });
   } else if(S.game==="skins"){
     return skinsState().per;
+  } else if(S.game==="matchplay"){
+    return matchplayState().pts;
   }
   return t;
 }
@@ -697,6 +746,7 @@ function playScreen(){
   if(S.game==="vegas") body=vegasHole(h);
   if(S.game==="aggregat") body=aggregatHole(h);
   if(S.game==="skins") body=skinsHole(h);
+  if(S.game==="matchplay") body=matchplayHole(h);
   const last = h>=S.holes;
   const holeOptions = Array.from({length:S.holes}, (_,i)=>{
     const n = i + 1;
@@ -988,15 +1038,73 @@ function readSkinsScores(h){
   document.querySelectorAll("[data-skin]").forEach(inp=>{ const i=+inp.dataset.skin; r.scores[i]=inp.value===""?"":Number(inp.value); });
 }
 
+/* --- Matchplay (Loch-für-Loch-Duell) --- */
+function matchplayState(){
+  const pts = [0, 0];
+  for(let h=1; h<=S.holes; h++){
+    const r = S.results[h];
+    if(!r || !r.scores) continue;
+    const complete = S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
+    if(!complete) continue;
+    const grossVals = S.players.map((_,i)=>Number(r.scores[i]));
+    const vals = S.cfg.matchplayNet
+      ? S.players.map((_,i)=>grossVals[i]-hcpStrokesForHole(i,h))
+      : grossVals;
+    if(vals[0]<vals[1]) pts[0]++;
+    else if(vals[1]<vals[0]) pts[1]++;
+  }
+  return {pts, diff: pts[0]-pts[1]};
+}
+function matchplayHole(h){
+  const r = S.results[h]||(S.results[h]={scores:S.players.map(()=>"")});
+  const par = (r.par!=null?r.par:S.par);
+  if(!r.prefilled){ S.players.forEach((_,i)=>{ if(r.scores[i]===""||r.scores[i]==null) r.scores[i]=par; }); r.prefilled=true; persist(); }
+  const rows = S.players.map((_,i)=>{
+    const vg = S.cfg.matchplayNet ? hcpStrokesForHole(i,h) : 0;
+    const label = S.cfg.matchplayNet && vg>0 ? `${nm(i)} (-${vg})` : nm(i);
+    return scoreStepper(i,"data-mpstep",r.scores[i],label);
+  }).join("");
+  const complete = S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
+  let holeRes = `<p class="hint">Scores eingeben für das Loch-Ergebnis.</p>`;
+  if(complete){
+    const grossVals = S.players.map((_,i)=>Number(r.scores[i]));
+    const vals = S.cfg.matchplayNet
+      ? S.players.map((_,i)=>grossVals[i]-hcpStrokesForHole(i,h))
+      : grossVals;
+    if(vals[0]<vals[1])      holeRes = `<div class="vresult" style="background:var(--turf-soft)"><span>Loch ${h} gewonnen</span><b class="big">${escHtml(nm(0))}</b></div>`;
+    else if(vals[1]<vals[0]) holeRes = `<div class="vresult" style="background:var(--turf-soft)"><span>Loch ${h} gewonnen</span><b class="big">${escHtml(nm(1))}</b></div>`;
+    else                     holeRes = `<div class="vresult"><span>Loch ${h}</span><b class="big">Gleichstand (Half)</b></div>`;
+  }
+  const st = matchplayState();
+  const diff = st.diff;
+  const statusTxt = diff===0 ? "All Square"
+    : `${escHtml(nm(diff>0?0:1))} ${Math.abs(diff)} up`;
+  const statusBox = `<div class="vresult" style="margin-top:8px"><span>Match-Stand</span><b class="big">${statusTxt}</b></div>`;
+  const netHint = S.cfg.matchplayNet
+    ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((_,i)=>`${escHtml(nm(i))} -${hcpStrokesForHole(i,h)}`).join(" · ")}</p>`
+    : "";
+  return `<div class="panel">
+    <div class="holebar"><span class="holetag">Loch ${h}</span>${parStepper(par,"data-mppar")}</div>
+    ${rows}
+    ${holeRes}
+    ${statusBox}
+    ${netHint}
+  </div>`;
+}
+
 function summaryScreen(){
   const t = totals();
   const gross = (S.cfg && S.cfg.showGross) ? grossTotals() : null;
   const ptLabel = S.game==="skins"
     ? (S.cfg.skinsNet ? "Netto-Skins" : "Skins")
-    : (S.game==="aggregat" && S.cfg.aggregatNet ? "Aggregat Netto" : "Punkte");
+    : S.game==="aggregat" && S.cfg.aggregatNet ? "Aggregat Netto"
+    : S.game==="matchplay" ? (S.cfg.matchplayNet ? "Netto-Löcher" : "Löcher gewonnen")
+    : "Punkte";
   const summaryEyebrow = S.game==="skins"
     ? (S.cfg.skinsNet ? "Netto-Wertung" : "Spielwertung")
-    : (S.game==="aggregat" && S.cfg.aggregatNet ? "Netto-Wertung" : "Spielwertung");
+    : S.game==="aggregat" && S.cfg.aggregatNet ? "Netto-Wertung"
+    : S.game==="matchplay" ? (S.cfg.matchplayNet ? "Netto-Matchplay" : "Match-Ergebnis")
+    : "Spielwertung";
   const order = S.players.map((p,i)=>({p,i})).sort((a,b)=>t[b.i]-t[a.i]);
   const rows = order.map(({p,i},rank)=>`
     <tr class="${rank===0?"win":""}">
@@ -1006,6 +1114,21 @@ function summaryScreen(){
     </tr>`).join("");
   let voided="";
   if(S.game==="skins"){ const c=skinsState().carried; if(c>0) voided=`<p class="hint">${c} Skin${c>1?"s":""} nicht gewonnen (Gleichstand am letzten Loch) – verfallen.</p>`; }
+  if(S.game==="matchplay"){
+    const st = matchplayState();
+    const diff = st.diff;
+    const holesPlayed = Object.keys(S.results).filter(h=>{
+      const r=S.results[h]; return r&&r.scores&&S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
+    }).length;
+    const holesLeft = S.holes - holesPlayed;
+    if(diff===0) voided = `<p class="hint">Match endet All Square.</p>`;
+    else {
+      const leader = diff>0?0:1;
+      const up = Math.abs(diff);
+      const resultStr = holesLeft===0 ? (up===1?"1 up":`${up} up`) : `${up} \u0026 ${holesLeft}`;
+      voided = `<p class="hint">🏆 ${escHtml(nm(leader))} gewinnt ${resultStr}</p>`;
+    }
+  }
   let settle="";
   if(S.stake){
     settle = `<div class="panel"><div class="eyebrow">Abrechnung · ${money(S.stake)}/${S.game==="skins"?"Skin":"Punkt"}</div>
@@ -1131,7 +1254,7 @@ function wire(){
     const [k,v]=b.dataset.seg.split(":");
     if(k==="holes"){
       S.holes=+v;
-      if(S.game==="skins" || S.game==="aggregat") getStrokeIndexMap(S.holes);
+      if(S.game==="skins" || S.game==="aggregat" || S.game==="matchplay") getStrokeIndexMap(S.holes);
     }
     else if(k==="carry") S.cfg.carry=(v==="1");
     else if(k==="flip") S.cfg.flip=(v==="1");
@@ -1139,6 +1262,7 @@ function wire(){
     else if(k==="showGross") S.cfg.showGross=(v==="1");
     else if(k==="skinsNet") S.cfg.skinsNet=(v==="1");
     else if(k==="aggregatNet") S.cfg.aggregatNet=(v==="1");
+    else if(k==="matchplayNet") S.cfg.matchplayNet=(v==="1");
     persist(); render();
   });
   app.querySelectorAll("[data-hcp]").forEach(inp=>inp.onchange=()=>{
@@ -1227,7 +1351,7 @@ function wire(){
     S.players.forEach((_,i)=>{ if(r.scores[i]===""||r.scores[i]==null||Number(r.scores[i])===oldPar) r.scores[i]=newPar; });
     persist(); render();
   });
-  parAdjust("data-vpar"); parAdjust("data-apar");
+  parAdjust("data-vpar"); parAdjust("data-apar"); parAdjust("data-mppar");
 
   // Score-Stepper (Vegas/Aggregat): leer -> Par als Basis, sonst ±1
   const scoreAdjust = (attr)=> app.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{
@@ -1237,7 +1361,7 @@ function wire(){
     let cur=(r.scores[i]===""||r.scores[i]==null)?par:Number(r.scores[i]);
     r.scores[i]=Math.min(15,Math.max(1,cur+d)); persist(); render();
   });
-  scoreAdjust("data-vstep"); scoreAdjust("data-astep");
+  scoreAdjust("data-vstep"); scoreAdjust("data-astep"); scoreAdjust("data-mpstep");
 
   // Skins-Stepper: leer -> erster Tap setzt 4, dann ±1
   app.querySelectorAll("[data-sstep]").forEach(b=>b.onclick=()=>{
