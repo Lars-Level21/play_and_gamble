@@ -248,6 +248,10 @@
   .divider{height:1px; background:var(--line); margin:4px 0}
   .small-cfg{display:grid; grid-template-columns:1fr auto; gap:8px 12px; align-items:center; font-size:13.5px}
   .small-cfg input{width:70px; padding:9px}
+  .si-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+  .si-cell{background:var(--paper-2); border:1.5px solid var(--line); border-radius:10px; padding:8px}
+  .si-cell span{display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:6px; text-align:center}
+  .si-cell select{width:100%; text-align:center; text-align-last:center; padding:9px 8px}
   .badge{display:inline-block;background:var(--navy-soft);color:var(--navy);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;letter-spacing:.03em}
   .tag-wolf{background:var(--lime-soft);color:var(--lime-dark)}
   @media (max-width:360px){ .grid{grid-template-columns:1fr} }
@@ -269,7 +273,7 @@ const store = (() => {
     del(k){ try { ok ? localStorage.removeItem(k) : (delete mem[k]); } catch(e){} }
   };
 })();
-const SKEY = "fairwayledger:v1", NKEY = "fairwayledger:names";
+const SKEY = "fairwayledger:v1", NKEY = "fairwayledger:names", HKEY = "fairwayledger:hcps";
 
 /* ============================ State ============================ */
 const GAMES = {
@@ -286,10 +290,59 @@ const GAMES = {
 };
 let S = null;
 
+function makeRange(n){ return Array.from({length:n},(_,i)=>i+1); }
+function sanitizeStrokeIndexMap(arr, holes){
+  const out = Array(holes).fill(null);
+  const used = new Set();
+  for(let i=0; i<holes; i++){
+    const v = Number(arr && arr[i]);
+    if(Number.isInteger(v) && v>=1 && v<=holes && !used.has(v)){
+      out[i] = v;
+      used.add(v);
+    }
+  }
+  return out;
+}
+function strokeIndexKey(holes){ return holes===9 ? "si9" : "si18"; }
+function getStrokeIndexMap(holes=S.holes){
+  const key = strokeIndexKey(holes);
+  S.cfg[key] = sanitizeStrokeIndexMap(S.cfg[key] || Array(holes).fill(null), holes);
+  return S.cfg[key];
+}
+function setStrokeIndexAt(idx, value, holes=S.holes){
+  const key = strokeIndexKey(holes);
+  const arr = getStrokeIndexMap(holes).slice();
+  if(value==="" || value==null){
+    arr[idx] = null;
+    S.cfg[key] = sanitizeStrokeIndexMap(arr, holes);
+    return true;
+  }
+  let v = Math.trunc(Number(value));
+  if(!Number.isFinite(v)) return false;
+  v = Math.max(1, Math.min(holes, v));
+  const other = arr.findIndex((x,j)=>x===v && j!==idx);
+  if(other>=0) arr[other] = null;
+  arr[idx] = v;
+  S.cfg[key] = sanitizeStrokeIndexMap(arr, holes);
+  return true;
+}
+function effectiveStrokeIndexMap(holes=S.holes){
+  const base = getStrokeIndexMap(holes).slice();
+  const used = new Set(base.filter(v=>Number.isInteger(v)));
+  const missing = makeRange(holes).filter(v=>!used.has(v));
+  let p = 0;
+  for(let i=0; i<holes; i++) if(base[i]==null) base[i] = missing[p++];
+  return base;
+}
+
 function freshState(game){
   const g = GAMES[game];
   const names = store.get(NKEY) || [];
-  const players = Array.from({length:g.defP}, (_,i)=>({name: names[i] || ""}));
+  const hcps = store.get(HKEY) || [];
+  const players = Array.from({length:g.defP}, (_,i)=>({
+    name: names[i] || "",
+    hcp: Math.max(0, Math.min(54, Number(hcps[i]) || 0))
+  }));
   const base = {
     screen:"setup", game, players, holes:18, currentHole:1, stake:0, results:{},
     cfg: defaultCfg(game)
@@ -302,8 +355,8 @@ function defaultCfg(game){
   if(game==="bbb")   return {pt:1, showGross:false};
   if(game==="wolf")  return {partnerWin:1, loneWin:null, loneLoss:1, blindMult:2, carry:false, showGross:false}; // loneWin null => Anzahl Gegner
   if(game==="vegas") return {flip:true, cap:9, showGross:false};
-  if(game==="aggregat") return {birdieDouble:false, showGross:false};
-  if(game==="skins") return {showGross:false};
+  if(game==="aggregat") return {birdieDouble:false, showGross:false, aggregatNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
+  if(game==="skins") return {showGross:false, skinsNet:false, si9:makeRange(9), si18:makeRange(18)};
   return {};
 }
 
@@ -451,6 +504,36 @@ function configScreen(){
       </div>`;
   }
   if(S.game==="aggregat"){
+    const siMap = getStrokeIndexMap(S.holes);
+    const used = new Set(siMap.filter(v=>Number.isInteger(v)));
+    const siRows = siMap.map((si,i)=>{
+      const options = makeRange(S.holes)
+        .filter(v=>v===si || !used.has(v))
+        .map(v=>`<option value="${v}" ${v===si?"selected":""}>${v}</option>`)
+        .join("");
+      return `
+      <div class="si-cell">
+        <span>Bahn ${i+1}</span>
+        <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
+          <option value="" ${si==null?"selected":""}>—</option>
+          ${options}
+        </select>
+      </div>`;
+    }).join("");
+    const hcpRows = S.players.map((p,i)=>`
+      <div class="vscore">
+        <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
+        <input type="number" data-hcp="${i}" value="${Number(p.hcp)||0}" min="0" max="54" step="1" aria-label="HCP Spieler ${i+1}">
+      </div>`).join("");
+    const netOnlyFields = S.cfg.aggregatNet ? `
+      <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
+        <p class="hint">9 Loch: Rundenvorgabe = halbes HCP (gerundet).</p>
+      </div>
+      <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
+        <div class="si-grid">${siRows}</div>
+        <button class="pick muted wide" data-si-reset style="margin-top:8px">Alle SI leeren</button>
+        <p class="hint">Dropdown zeigt pro Bahn nur noch verfügbare SI-Werte.</p>
+      </div>` : `<p class="hint">Bei Brutto-Aggregat sind keine HCP- oder Stroke-Index-Angaben nötig.</p>`;
     const teamPick = S.players.map((p,i)=>`
       <div class="vscore">
         <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
@@ -462,13 +545,62 @@ function configScreen(){
     extra = `
       <div class="field"><label class="fl">Teams (2 vs 2)</label>${teamPick}
         <p class="hint" id="teamwarn"></p></div>
+      <div class="field"><label class="fl">Aggregat-Wertung</label>
+        <div class="seg" style="margin-bottom:10px">
+          <button data-seg="aggregatNet:0" class="${!S.cfg.aggregatNet?"on":""}">Brutto-Aggregat</button>
+          <button data-seg="aggregatNet:1" class="${S.cfg.aggregatNet?"on":""}">Netto-Aggregat (HCP)</button>
+        </div>
+        <p class="hint">Bei Netto werden bester Einzelscore und Team-Summe auf Basis der Netto-Scores gewertet.</p>
+      </div>
       <div class="field"><label class="fl">Zusatzregel</label>
         <div class="seg">
           <button data-seg="birdieDouble:1" class="${S.cfg.birdieDouble?"on":""}">Birdie zählt doppelt</button>
           <button data-seg="birdieDouble:0" class="${!S.cfg.birdieDouble?"on":""}">aus</button>
         </div>
         <p class="hint">Gewinnt ein Team einen Punkt an einem Loch, an dem es ein Birdie (o. besser) gespielt hat, zählt dieser Punkt doppelt. Beide Wertungen doppeln unabhängig.</p>
+      </div>
+      ${netOnlyFields}`;
+  }
+  if(S.game==="skins"){
+    const siMap = getStrokeIndexMap(S.holes);
+    const used = new Set(siMap.filter(v=>Number.isInteger(v)));
+    const siRows = siMap.map((si,i)=>{
+      const options = makeRange(S.holes)
+        .filter(v=>v===si || !used.has(v))
+        .map(v=>`<option value="${v}" ${v===si?"selected":""}>${v}</option>`)
+        .join("");
+      return `
+      <div class="si-cell">
+        <span>Bahn ${i+1}</span>
+        <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
+          <option value="" ${si==null?"selected":""}>—</option>
+          ${options}
+        </select>
       </div>`;
+    }).join("");
+    const hcpRows = S.players.map((p,i)=>`
+      <div class="vscore">
+        <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
+        <input type="number" data-hcp="${i}" value="${Number(p.hcp)||0}" min="0" max="54" step="1" aria-label="HCP Spieler ${i+1}">
+      </div>`).join("");
+    const netOnlyFields = S.cfg.skinsNet ? `
+      <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
+        <p class="hint">9 Loch: Rundenvorgabe = halbes HCP (gerundet).</p>
+      </div>
+      <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
+        <div class="si-grid">${siRows}</div>
+        <button class="pick muted wide" data-si-reset style="margin-top:8px">Alle SI leeren</button>
+        <p class="hint">Dropdown zeigt pro Bahn nur noch verfügbare SI-Werte.</p>
+      </div>` : `<p class="hint">Bei Brutto-Skins sind keine HCP- oder Stroke-Index-Angaben nötig.</p>`;
+    extra += `
+      <div class="field"><label class="fl">Skins-Wertung</label>
+        <div class="seg" style="margin-bottom:10px">
+          <button data-seg="skinsNet:0" class="${!S.cfg.skinsNet?"on":""}">Brutto-Skins</button>
+          <button data-seg="skinsNet:1" class="${S.cfg.skinsNet?"on":""}">Netto-Skins (HCP)</button>
+        </div>
+        <p class="hint">Bei Netto werden pro Bahn Vorgabeschläge berücksichtigt.</p>
+      </div>
+      ${netOnlyFields}`;
   }
   if(["bbb","wolf","vegas","aggregat","skins"].includes(S.game)){
     extra += `
@@ -530,6 +662,18 @@ function grossTotals(){
     S.players.forEach((_,i)=>{ g[i] += Number(r.scores[i]); });
   }
   return {totals:g, counted};
+}
+function roundHandicap(i){
+  const hcp = Math.max(0, Number(S.players[i]?.hcp) || 0);
+  return S.holes===9 ? Math.round(hcp/2) : hcp;
+}
+function hcpStrokesForHole(i, h){
+  const rh = roundHandicap(i);
+  const holes = S.holes;
+  const base = Math.floor(rh / holes);
+  const rest = rh % holes;
+  const rank = effectiveStrokeIndexMap(holes)[h - 1] || (((h - 1) % holes) + 1);
+  return base + (rank <= rest ? 1 : 0);
 }
 function miniBoard(){
   const t = totals();
@@ -724,7 +868,11 @@ function aggregatHole(h){
   if(!r.prefilled){ S.players.forEach((_,i)=>{ if(r.scores[i]===""||r.scores[i]==null) r.scores[i]=par; }); r.prefilled=true; persist(); }
   const teamRows = [0,1].map(tm=>{
     const idx = S.players.map((_,i)=>i).filter(i=>S.teams[i]===tm);
-    const rows = idx.map(i=>scoreStepper(i,"data-astep",r.scores[i])).join("");
+    const rows = idx.map(i=>{
+      const vg = hcpStrokesForHole(i,h);
+      const label = S.cfg.aggregatNet && vg>0 ? `${nm(i)} (-${vg})` : nm(i);
+      return scoreStepper(i,"data-astep",r.scores[i], label);
+    }).join("");
     return `<div class="vteam"><h4>Team ${tm===0?"A":"B"}</h4>${rows}</div>`;
   }).join("");
   const calc = aggregatCompute(h,r,par);
@@ -734,22 +882,29 @@ function aggregatHole(h){
       ? `<span class="par">geteilt</span>`
       : `<b class="big">Team ${win===0?"A":"B"}${dbl?` <span class="flip-note">×2</span>`:""}</b>`;
     resBox = `
-      <div class="vresult"><span>Bester Einzelscore (${calc.bestScore}${calc.bestBirdie?" · Birdie":""})</span>${teamCell(calc.indivWin,calc.indivDouble)}</div>
-      <div class="vresult"><span>Team-Summe (A ${calc.sumA} : ${calc.sumB} B)</span>${teamCell(calc.sumWin,calc.sumDouble)}</div>
+      <div class="vresult"><span>${calc.scoreLabel} (${calc.bestScore}${calc.bestBirdie?" · Birdie":""})</span>${teamCell(calc.indivWin,calc.indivDouble)}</div>
+      <div class="vresult"><span>${calc.sumLabel} (A ${calc.sumA} : ${calc.sumB} B)</span>${teamCell(calc.sumWin,calc.sumDouble)}</div>
       <div class="vresult" style="background:var(--turf-soft)"><span>Punkte dieses Loch</span><b class="big">A ${calc.tpts[0]} : ${calc.tpts[1]} B</b></div>`;
   }
+  const netHint = S.cfg.aggregatNet
+    ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((p,i)=>`${escHtml(nm(i))} -${hcpStrokesForHole(i,h)}`).join(" · ")}</p>`
+    : "";
   return `<div class="panel">
     <div class="holebar"><span class="holetag">Loch ${h}</span>${parStepper(par,"data-apar")}</div>
     ${teamRows}
     ${resBox}
+    ${netHint}
   </div>`;
 }
 function aggregatCompute(h,r,par){
   const sc=(r&&r.scores)||[];
   if(S.players.some((_,i)=>sc[i]===""||sc[i]==null)) return null;
-  const vals = S.players.map((_,i)=>Number(sc[i]));
+  const grossVals = S.players.map((_,i)=>Number(sc[i]));
+  const vals = S.cfg.aggregatNet
+    ? S.players.map((_,i)=>grossVals[i]-hcpStrokesForHole(i,h))
+    : grossVals;
   const sums=[0,0]; S.players.forEach((_,i)=>{ sums[S.teams[i]]+=vals[i]; });
-  const birdie=[false,false]; S.players.forEach((_,i)=>{ if(vals[i]<par) birdie[S.teams[i]]=true; });
+  const birdie=[false,false]; S.players.forEach((_,i)=>{ if(grossVals[i]<par) birdie[S.teams[i]]=true; });
   const best=Math.min(...vals);
   const bestTeams=new Set(S.players.map((_,i)=>i).filter(i=>vals[i]===best).map(i=>S.teams[i]));
   const indivWin = bestTeams.size===1 ? [...bestTeams][0] : -1;
@@ -760,7 +915,12 @@ function aggregatCompute(h,r,par){
   const tpts=[0,0];
   if(indivWin>=0) tpts[indivWin]+= indivDouble?2:1;
   if(sumWin>=0)   tpts[sumWin]  += sumDouble?2:1;
-  return {sumA:sums[0], sumB:sums[1], bestScore:best, bestBirdie:best<par, indivWin, sumWin, indivDouble, sumDouble, tpts};
+  return {
+    sumA:sums[0], sumB:sums[1], bestScore:best, bestBirdie:grossVals.some((v,i)=>v<par && vals[i]===best),
+    indivWin, sumWin, indivDouble, sumDouble, tpts,
+    scoreLabel:S.cfg.aggregatNet?"Bester Netto-Score":"Bester Einzelscore",
+    sumLabel:S.cfg.aggregatNet?"Netto-Team-Summe":"Team-Summe"
+  };
 }
 function readAggregatScores(h){
   const r=S.results[h]||(S.results[h]={scores:S.players.map(()=>"")});
@@ -782,11 +942,14 @@ function skinsState(){
     const complete = r && r.scores && S.players.every((_,i)=>r.scores[i]!=="" && r.scores[i]!=null);
     const pot = carried + 1;
     if(!complete){ holeInfo[h] = {pot, winner:null, resolved:false, tie:false}; continue; }
-    const vals = S.players.map((_,i)=>Number(r.scores[i]));
-    const best = Math.min(...vals);
-    const low = S.players.map((_,i)=>i).filter(i=>vals[i]===best);
-    if(low.length===1){ per[low[0]] += pot; holeInfo[h] = {pot, winner:low[0], resolved:true, tie:false}; carried = 0; }
-    else { holeInfo[h] = {pot, winner:null, resolved:true, tie:true}; carried = pot; }
+    const grossVals = S.players.map((_,i)=>Number(r.scores[i]));
+    const evalVals = S.cfg.skinsNet
+      ? S.players.map((_,i)=>grossVals[i]-hcpStrokesForHole(i,h))
+      : grossVals;
+    const best = Math.min(...evalVals);
+    const low = S.players.map((_,i)=>i).filter(i=>evalVals[i]===best);
+    if(low.length===1){ per[low[0]] += pot; holeInfo[h] = {pot, winner:low[0], resolved:true, tie:false, evalVals}; carried = 0; }
+    else { holeInfo[h] = {pot, winner:null, resolved:true, tie:true, evalVals}; carried = pot; }
   }
   return {per, holeInfo, carried};
 }
@@ -794,7 +957,11 @@ function skinsHole(h){
   const r = S.results[h] || {scores:S.players.map(()=>"")};
   const st = skinsState();
   const info = st.holeInfo[h] || {pot:1, winner:null, resolved:false, tie:false};
-  const rows = S.players.map((p,i)=>scoreStepper(i,"data-sstep",r.scores[i])).join("");
+  const rows = S.players.map((p,i)=>{
+    const vg = hcpStrokesForHole(i,h);
+    const label = S.cfg.skinsNet && vg>0 ? `${nm(i)} (-${vg})` : nm(i);
+    return scoreStepper(i,"data-sstep",r.scores[i], label);
+  }).join("");
   let res;
   const sk = n=>`${n} Skin${n>1?"s":""}`;
   if(!info.resolved){
@@ -805,11 +972,15 @@ function skinsHole(h){
   } else {
     res = `<div class="vresult"><span>Gleichstand – Carry</span><b class="big">${sk(info.pot)} → Loch ${h+1}</b></div>`;
   }
+  const netHint = S.cfg.skinsNet
+    ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((p,i)=>`${escHtml(nm(i))} -${hcpStrokesForHole(i,h)}`).join(" · ")}</p>`
+    : "";
   const potBadge = (info.pot>1) ? `<span class="badge" style="background:var(--lime-soft);color:var(--lime-dark)">Pot: ${sk(info.pot)}</span>` : "";
   return `<div class="panel">
     <div class="holebar"><span class="holetag">Loch ${h}</span>${potBadge}</div>
     ${rows}
     ${res}
+    ${netHint}
   </div>`;
 }
 function readSkinsScores(h){
@@ -820,7 +991,12 @@ function readSkinsScores(h){
 function summaryScreen(){
   const t = totals();
   const gross = (S.cfg && S.cfg.showGross) ? grossTotals() : null;
-  const ptLabel = S.game==="skins" ? "Skins" : "Punkte";
+  const ptLabel = S.game==="skins"
+    ? (S.cfg.skinsNet ? "Netto-Skins" : "Skins")
+    : (S.game==="aggregat" && S.cfg.aggregatNet ? "Aggregat Netto" : "Punkte");
+  const summaryEyebrow = S.game==="skins"
+    ? (S.cfg.skinsNet ? "Netto-Wertung" : "Spielwertung")
+    : (S.game==="aggregat" && S.cfg.aggregatNet ? "Netto-Wertung" : "Spielwertung");
   const order = S.players.map((p,i)=>({p,i})).sort((a,b)=>t[b.i]-t[a.i]);
   const rows = order.map(({p,i},rank)=>`
     <tr class="${rank===0?"win":""}">
@@ -856,6 +1032,7 @@ function summaryScreen(){
   return `${header(GAMES[S.game].name,"Endstand",{back:"play"})}
     <main>
       <div class="panel">
+        <div class="eyebrow">${summaryEyebrow}</div>
         <table class="board">
           <thead><tr><th>Spieler</th><th style="text-align:right">${ptLabel}</th>${S.stake?`<th style="text-align:right">Netto</th>`:""}</tr></thead>
           <tbody>${rows}</tbody>
@@ -879,10 +1056,11 @@ function settleUp(t){
 
 /* ============================ Helpers ============================ */
 function bar(inner){ return `<div class="bar"><div class="bar-inner">${inner}</div></div>`; }
-function scoreStepper(i, attr, val){
+function scoreStepper(i, attr, val, nameLabel){
   const empty = (val===""||val==null);
+  const label = nameLabel || nm(i);
   return `<div class="scorerow">
-    <span class="vn">${escHtml(nm(i))}</span>
+    <span class="vn">${escHtml(label)}</span>
     <div class="scstep">
       <button ${attr}="${i}:-1" aria-label="minus">–</button>
       <span class="scval ${empty?"empty":""}">${empty?"–":val}</span>
@@ -936,23 +1114,54 @@ function wire(){
   app.querySelectorAll("[data-pcount]").forEach(b=>b.onclick=()=>{
     readNames(); const d=+b.dataset.pcount, g=GAMES[S.game];
     const n=Math.min(g.max,Math.max(g.min,S.players.length+d));
-    while(S.players.length<n) S.players.push({name:""});
+    while(S.players.length<n) S.players.push({name:"", hcp:0});
     while(S.players.length>n) S.players.pop();
     persist(); render();
   });
   const toCfg = app.querySelector('[data-to="config"]');
-  if(toCfg) toCfg.onclick=()=>{ readNames(); store.set(NKEY, S.players.map(p=>p.name)); go("config"); };
+  if(toCfg) toCfg.onclick=()=>{
+    readNames();
+    store.set(NKEY, S.players.map(p=>p.name));
+    store.set(HKEY, S.players.map(p=>Math.max(0, Math.min(54, Number(p.hcp)||0))));
+    go("config");
+  };
 
   // config toggles
   app.querySelectorAll("[data-seg]").forEach(b=>b.onclick=()=>{
     const [k,v]=b.dataset.seg.split(":");
-    if(k==="holes") S.holes=+v;
+    if(k==="holes"){
+      S.holes=+v;
+      if(S.game==="skins" || S.game==="aggregat") getStrokeIndexMap(S.holes);
+    }
     else if(k==="carry") S.cfg.carry=(v==="1");
     else if(k==="flip") S.cfg.flip=(v==="1");
     else if(k==="birdieDouble") S.cfg.birdieDouble=(v==="1");
     else if(k==="showGross") S.cfg.showGross=(v==="1");
+    else if(k==="skinsNet") S.cfg.skinsNet=(v==="1");
+    else if(k==="aggregatNet") S.cfg.aggregatNet=(v==="1");
     persist(); render();
   });
+  app.querySelectorAll("[data-hcp]").forEach(inp=>inp.onchange=()=>{
+    const i = Number(inp.dataset.hcp);
+    S.players[i].hcp = Math.max(0, Math.min(54, Number(inp.value)||0));
+    store.set(HKEY, S.players.map(p=>Math.max(0, Math.min(54, Number(p.hcp)||0))));
+    persist();
+  });
+  app.querySelectorAll("[data-si]").forEach(inp=>inp.onchange=()=>{
+    const idx = Number(inp.dataset.si);
+    const ok = setStrokeIndexAt(idx, inp.value, S.holes);
+    if(!ok){ render(); return; }
+    persist();
+    render();
+  });
+  const siReset = app.querySelector("[data-si-reset]");
+  if(siReset) siReset.onclick=()=>{
+    const holes = S.holes;
+    const key = strokeIndexKey(holes);
+    S.cfg[key] = Array(holes).fill(null);
+    persist();
+    render();
+  };
   app.querySelectorAll("[data-cfg]").forEach(b=>b.onclick=()=>{
     const [k,d]=b.dataset.cfg.split(":"); S.cfg[k]=Math.max(1,(S.cfg[k]||1)+Number(d)); persist(); render();
   });
