@@ -56,7 +56,7 @@
   .back:disabled{opacity:0;pointer-events:none}
   .brand-logo{
     margin-left:auto; height:42px; width:42px; border-radius:50%;
-    background:#fff; padding:2px; box-shadow:0 2px 8px rgba(0,0,0,.25); display:block;
+    background:#fff; padding:2px; box-shadow:0 2px 8px rgba(0,0,0,.25); display:block; cursor:pointer;
   }
   .htitle{font-size:20px; font-weight:800; letter-spacing:-.01em; margin:6px 0 0; color:#fff}
   .hsub{font-size:12.5px; color:#AFC9DE; margin-top:2px}
@@ -111,7 +111,7 @@
   input:focus{outline:none; border-color:var(--turf); background:#fff}
   input[type=number]{font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums; text-align:center}
   input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-  input[type=number]{-moz-appearance:textfield}
+  input[type=number]{appearance:textfield;-moz-appearance:textfield}
   /* Score-Stepper (Vegas/Aggregat/Skins) */
   .scorerow{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px}
   .scorerow .vn{font-size:15px; font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -226,6 +226,15 @@
   .btn:active{transform:translateY(1px)}
   .holenav{display:flex; align-items:center; gap:8px}
   .holenav .cur{font-family:ui-monospace,monospace; font-weight:800; font-size:15px; min-width:70px; text-align:center; color:var(--navy)}
+  .holesel{
+    min-width:132px; max-width:170px;
+    height:44px; padding:0 12px;
+    border:1.5px solid var(--line); border-radius:10px;
+    background:var(--paper-2); color:var(--navy);
+    font-family:ui-monospace,monospace; font-size:15px; font-weight:800;
+    text-align:center; text-align-last:center;
+    cursor:pointer;
+  }
   /* resume banner */
   .resume{
     background:var(--navy); color:#EAF2F9; border-radius:var(--radius); padding:14px 16px;
@@ -290,10 +299,11 @@ function freshState(game){
   return base;
 }
 function defaultCfg(game){
-  if(game==="bbb")   return {pt:1};
-  if(game==="wolf")  return {partnerWin:1, loneWin:null, loneLoss:1, blindMult:2, carry:false}; // loneWin null => Anzahl Gegner
-  if(game==="vegas") return {flip:true, cap:9};
-  if(game==="aggregat") return {birdieDouble:false};
+  if(game==="bbb")   return {pt:1, showGross:false};
+  if(game==="wolf")  return {partnerWin:1, loneWin:null, loneLoss:1, blindMult:2, carry:false, showGross:false}; // loneWin null => Anzahl Gegner
+  if(game==="vegas") return {flip:true, cap:9, showGross:false};
+  if(game==="aggregat") return {birdieDouble:false, showGross:false};
+  if(game==="skins") return {showGross:false};
   return {};
 }
 
@@ -460,6 +470,16 @@ function configScreen(){
         <p class="hint">Gewinnt ein Team einen Punkt an einem Loch, an dem es ein Birdie (o. besser) gespielt hat, zählt dieser Punkt doppelt. Beide Wertungen doppeln unabhängig.</p>
       </div>`;
   }
+  if(["bbb","wolf","vegas","aggregat","skins"].includes(S.game)){
+    extra += `
+      <div class="field"><label class="fl">Zusätzliche Wertung</label>
+        <div class="seg">
+          <button data-seg="showGross:1" class="${S.cfg.showGross?"on":""}">Brutto anzeigen</button>
+          <button data-seg="showGross:0" class="${!S.cfg.showGross?"on":""}">aus</button>
+        </div>
+        <p class="hint">Zeigt am Ende zusätzlich ein Brutto-Ranking (Summe aller Schläge, niedriger ist besser).</p>
+      </div>`;
+  }
   return `${header(g.name,"Einstellungen",{back:"setup"})}
     <main>
       <div class="panel">
@@ -498,6 +518,19 @@ function totals(){
   }
   return t;
 }
+function grossTotals(){
+  const g = S.players.map(()=>0);
+  let counted = 0;
+  for(let h=1; h<=S.holes; h++){
+    const r = S.results[h];
+    if(!r || !Array.isArray(r.scores)) continue;
+    const complete = S.players.every((_,i)=>r.scores[i]!=="" && r.scores[i]!=null);
+    if(!complete) continue;
+    counted++;
+    S.players.forEach((_,i)=>{ g[i] += Number(r.scores[i]); });
+  }
+  return {totals:g, counted};
+}
 function miniBoard(){
   const t = totals();
   const max = Math.max(...t, 0);
@@ -521,9 +554,13 @@ function playScreen(){
   if(S.game==="aggregat") body=aggregatHole(h);
   if(S.game==="skins") body=skinsHole(h);
   const last = h>=S.holes;
+  const holeOptions = Array.from({length:S.holes}, (_,i)=>{
+    const n = i + 1;
+    return `<option value="${n}" ${n===h?"selected":""}>Bahn ${n}</option>`;
+  }).join("");
   const navHtml = `<div class="holenav">
       <button class="btn ghost" data-hole="-1" ${h<=1?"disabled":""}>‹</button>
-      <span class="cur">Loch ${h}/${S.holes}</span>
+      <select class="holesel" data-hole-select aria-label="Bahn wählen">${holeOptions}</select>
       <button class="btn ghost" data-hole="1" ${last?"disabled":""}>›</button>
     </div>`;
   const cta = last
@@ -547,11 +584,19 @@ function bbbHole(h){
       </div>
     </div>`;
   };
+  const grossRows = S.players.map((p,i)=>scoreStepper(i,"data-bstep",(r.scores||[])[i])).join("");
+  const grossBox = S.cfg.showGross ? `
+    <div class="divider"></div>
+    <div class="field" style="margin-top:10px">
+      <label class="fl">Brutto-Scores · Bahn ${h}</label>
+      ${grossRows}
+    </div>` : "";
   return `<div class="panel">
     <div class="holebar"><span class="holetag">Loch ${h}</span></div>
     ${line("bingo","Bingo","erster aufs Grün")}
     ${line("bango","Bango","näher zur Fahne")}
     ${line("bongo","Bongo","erster eingelocht")}
+    ${grossBox}
   </div>`;
 }
 
@@ -583,6 +628,13 @@ function wolfHole(h){
       </div>
     </div>`;
   }
+  const grossRows = S.players.map((p,i)=>scoreStepper(i,"data-wstep",(r.scores||[])[i])).join("");
+  const grossBox = S.cfg.showGross ? `
+    <div class="divider"></div>
+    <div class="field" style="margin-top:10px">
+      <label class="fl">Brutto-Scores · Bahn ${h}</label>
+      ${grossRows}
+    </div>` : "";
   return `<div class="panel">
     <div class="holebar"><span class="holetag">Loch ${h}</span><span class="badge tag-wolf">🐺 Wolf: ${escHtml(nm(wolf))}</span></div>
     <div class="field" style="margin-top:6px">
@@ -594,6 +646,7 @@ function wolfHole(h){
       </div>
     </div>
     ${outcome}
+    ${grossBox}
     <p class="hint">Reihenfolge = Wolf-Rotation: ${order.map(i=>escHtml(nm(i))).join(" → ")} → …</p>
   </div>`;
 }
@@ -766,6 +819,7 @@ function readSkinsScores(h){
 
 function summaryScreen(){
   const t = totals();
+  const gross = (S.cfg && S.cfg.showGross) ? grossTotals() : null;
   const ptLabel = S.game==="skins" ? "Skins" : "Punkte";
   const order = S.players.map((p,i)=>({p,i})).sort((a,b)=>t[b.i]-t[a.i]);
   const rows = order.map(({p,i},rank)=>`
@@ -782,6 +836,23 @@ function summaryScreen(){
       <div class="settle">${settleUp(t)}</div>
       <p class="hint">Netto ggü. Durchschnitt: wer über dem Schnitt liegt, bekommt – wer drunter liegt, zahlt.</p></div>`;
   }
+  let grossPanel = "";
+  if(gross){
+    const grossOrder = S.players.map((p,i)=>({p,i})).sort((a,b)=>gross.totals[a.i]-gross.totals[b.i]);
+    const grossRows = grossOrder.map(({p,i},rank)=>`
+      <tr class="${rank===0?"win":""}">
+        <td><span class="rk">${rank+1}</span>${escHtml(p.name||("Spieler "+(i+1)))}</td>
+        <td class="num">${gross.totals[i]}</td>
+      </tr>`).join("");
+    grossPanel = `<div class="panel">
+      <div class="eyebrow">Brutto-Wertung</div>
+      <table class="board">
+        <thead><tr><th>Spieler</th><th style="text-align:right">Brutto</th></tr></thead>
+        <tbody>${grossRows}</tbody>
+      </table>
+      <p class="hint">Niedriger ist besser. Gewertet: ${gross.counted} von ${S.holes} Bahnen.</p>
+    </div>`;
+  }
   return `${header(GAMES[S.game].name,"Endstand",{back:"play"})}
     <main>
       <div class="panel">
@@ -791,6 +862,7 @@ function summaryScreen(){
         </table>
         ${voided}
       </div>
+      ${grossPanel}
       ${settle}
     </main>
     ${bar(`<button class="btn ghost" data-back="play" style="flex:1">‹ Löcher</button><button class="btn turf" data-newround>Neue Runde</button>`)}`;
@@ -843,6 +915,13 @@ function readVegasScores(h){
 function wire(){
   const app = document.getElementById("app");
 
+  const homeBtn = app.querySelector(".brand-logo");
+  if(homeBtn) homeBtn.onclick=()=>{
+    if(S && S.screen==="setup") readNames();
+    if(S) persist();
+    render(homeScreen(store.get(SKEY)));
+  };
+
   app.querySelectorAll("[data-game]").forEach(b=>b.onclick=()=>{ S=freshState(b.dataset.game); persist(); render(); });
   const rs = app.querySelector("[data-resume]"); if(rs) rs.onclick=()=>{ S=store.get(SKEY); render(); };
   const cs = app.querySelector("[data-clearsaved]"); if(cs) cs.onclick=()=>{ store.del(SKEY); render(homeScreen(null)); };
@@ -871,6 +950,7 @@ function wire(){
     else if(k==="carry") S.cfg.carry=(v==="1");
     else if(k==="flip") S.cfg.flip=(v==="1");
     else if(k==="birdieDouble") S.cfg.birdieDouble=(v==="1");
+    else if(k==="showGross") S.cfg.showGross=(v==="1");
     persist(); render();
   });
   app.querySelectorAll("[data-cfg]").forEach(b=>b.onclick=()=>{
@@ -897,6 +977,13 @@ function wire(){
     finalizeCurrent();
     S.currentHole=Math.min(S.holes,Math.max(1,S.currentHole+Number(b.dataset.hole))); persist(); render();
   });
+  const holeSelect = app.querySelector("[data-hole-select]");
+  if(holeSelect) holeSelect.onchange=()=>{
+    finalizeCurrent();
+    S.currentHole = Math.min(S.holes, Math.max(1, Number(holeSelect.value)));
+    persist();
+    render();
+  };
   const next=app.querySelector("[data-next]");
   if(next) next.onclick=()=>{
     finalizeCurrent();
@@ -951,6 +1038,18 @@ function wire(){
     else { r.scores[i]=Math.min(15,Math.max(1,Number(r.scores[i])+d)); }
     persist(); render();
   });
+
+  // BBB/Wolf Brutto-Stepper: leer -> erster Tap setzt 4, dann ±1
+  const grossAdjust = (attr)=> app.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{
+    const [i,d]=b.getAttribute(attr).split(":").map(Number); const h=S.currentHole;
+    const r=S.results[h]||(S.results[h]={});
+    if(!Array.isArray(r.scores)) r.scores=S.players.map(()=>"");
+    if(r.scores[i]===""||r.scores[i]==null){ r.scores[i]=4; }
+    else { r.scores[i]=Math.min(15,Math.max(1,Number(r.scores[i])+d)); }
+    persist(); render();
+  });
+  grossAdjust("data-bstep");
+  grossAdjust("data-wstep");
 
   const nr=app.querySelector("[data-newround]");
   if(nr) nr.onclick=()=>{ store.del(SKEY); S=null; render(homeScreen(null)); };
