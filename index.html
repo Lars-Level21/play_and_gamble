@@ -280,7 +280,7 @@ const store = (() => {
     del(k){ try { ok ? localStorage.removeItem(k) : (delete mem[k]); } catch(e){} }
   };
 })();
-const SKEY = "fairwayledger:v1", NKEY = "fairwayledger:names", HKEY = "fairwayledger:hcps";
+const SKEY = "fairwayledger:v1", NKEY = "fairwayledger:names", HKEY = "fairwayledger:hcps", SICKEY = "fairwayledger:si-cache:v1";
 
 /* ============================ State ============================ */
 const GAMES = {
@@ -313,9 +313,49 @@ function sanitizeStrokeIndexMap(arr, holes){
   return out;
 }
 function strokeIndexKey(holes){ return holes===9 ? "si9" : "si18"; }
+function normalizeCourseName(value){
+  return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+function getCachedCourseNames(){
+  const cache = store.get(SICKEY) || {};
+  const names = new Set();
+  Object.keys(cache).forEach(key=>{
+    const m = key.match(/^(.*):(9|18)$/);
+    if(m) names.add(m[1]);
+  });
+  if(S?.course) names.add(normalizeCourseName(S.course));
+  return Array.from(names).sort((a,b)=>a.localeCompare(b, "de"));
+}
+function getCachedStrokeIndexMap(holes=S.holes){
+  const course = normalizeCourseName(S?.course);
+  if(!course || !["aggregat","skins","matchplay"].includes(S?.game)) return null;
+  const cache = store.get(SICKEY) || {};
+  const entry = cache[`${course}:${holes}`];
+  return entry ? sanitizeStrokeIndexMap(entry, holes) : null;
+}
+function persistCachedStrokeIndexMap(map, holes=S.holes){
+  const course = normalizeCourseName(S?.course);
+  if(!course || !["aggregat","skins","matchplay"].includes(S?.game)) return;
+  const cache = store.get(SICKEY) || {};
+  cache[`${course}:${holes}`] = sanitizeStrokeIndexMap(map, holes);
+  store.set(SICKEY, cache);
+}
+function clearCachedStrokeIndexMap(holes=S.holes){
+  const course = normalizeCourseName(S?.course);
+  if(!course || !["aggregat","skins","matchplay"].includes(S?.game)) return;
+  const cache = store.get(SICKEY) || {};
+  delete cache[`${course}:${holes}`];
+  store.set(SICKEY, cache);
+}
 function getStrokeIndexMap(holes=S.holes){
   const key = strokeIndexKey(holes);
-  S.cfg[key] = sanitizeStrokeIndexMap(S.cfg[key] || Array(holes).fill(null), holes);
+  const cached = getCachedStrokeIndexMap(holes);
+  const current = sanitizeStrokeIndexMap(S.cfg[key] || Array(holes).fill(null), holes);
+  if(cached && current.every(v=>v==null)){
+    S.cfg[key] = cached.slice();
+  } else {
+    S.cfg[key] = current;
+  }
   return S.cfg[key];
 }
 function setStrokeIndexAt(idx, value, holes=S.holes){
@@ -324,6 +364,7 @@ function setStrokeIndexAt(idx, value, holes=S.holes){
   if(value==="" || value==null){
     arr[idx] = null;
     S.cfg[key] = sanitizeStrokeIndexMap(arr, holes);
+    persistCachedStrokeIndexMap(S.cfg[key], holes);
     return true;
   }
   let v = Math.trunc(Number(value));
@@ -333,6 +374,7 @@ function setStrokeIndexAt(idx, value, holes=S.holes){
   if(other>=0) arr[other] = null;
   arr[idx] = v;
   S.cfg[key] = sanitizeStrokeIndexMap(arr, holes);
+  persistCachedStrokeIndexMap(S.cfg[key], holes);
   return true;
 }
 function effectiveStrokeIndexMap(holes=S.holes){
@@ -353,7 +395,7 @@ function freshState(game){
     hcp: Math.max(0, Math.min(54, Number(hcps[i]) || 0))
   }));
   const base = {
-    screen:"setup", game, players, holes:18, currentHole:1, stake:0, results:{},
+    screen:"setup", game, players, holes:18, currentHole:1, stake:0, course:"", results:{},
     cfg: defaultCfg(game)
   };
   if(game==="vegas"||game==="aggregat"){ base.teams=[0,0,1,1]; base.par=4; }
@@ -613,9 +655,15 @@ function configScreen(){
         <p class="hint">Zeigt am Ende zusätzlich ein Brutto-Ranking (Summe aller Schläge, niedriger ist besser).</p>
       </div>`;
   }
+  const courseOptions = getCachedCourseNames().map(c=>`<option value="${escAttr(c)}"></option>`).join("");
   return `${header(g.name,"Einstellungen",{back:"setup"})}
     <main>
       <div class="panel">
+        <div class="field"><label class="fl">Platz</label>
+          <input type="text" list="course-datalist" data-cfgv="course" value="${escAttr(S.course||"")}" placeholder="z. B. Bostalsee" autocomplete="off">
+          <datalist id="course-datalist">${courseOptions}</datalist>
+          <p class="hint">Optional: Sie können einen bekannten Platz wählen oder einen neuen Namen eingeben. Die SI-Werte werden pro Platz und Lochzahl gespeichert.</p>
+        </div>
         <div class="field"><label class="fl">Löcher</label>
           <div class="seg">
             <button data-seg="holes:9" class="${S.holes===9?"on":""}">9 Löcher</button>
@@ -1265,6 +1313,7 @@ function wire(){
     const holes = S.holes;
     const key = strokeIndexKey(holes);
     S.cfg[key] = Array(holes).fill(null);
+    clearCachedStrokeIndexMap(holes);
     persist();
     render();
   };
@@ -1272,8 +1321,11 @@ function wire(){
     const [k,d]=b.dataset.cfg.split(":"); S.cfg[k]=Math.max(1,(S.cfg[k]||1)+Number(d)); persist(); render();
   });
   app.querySelectorAll("[data-cfgv]").forEach(inp=>inp.onchange=()=>{
-    const k=inp.dataset.cfgv, val=inp.value===""?"":Number(inp.value);
-    if(k==="stake") S.stake=val||0; else S.cfg[k]=val;
+    const k=inp.dataset.cfgv;
+    const raw=inp.value;
+    if(k==="stake") S.stake=raw===""?0:Number(raw);
+    else if(k==="course") S.course=raw.trim();
+    else S.cfg[k]=raw===""?"":Number(raw);
     persist();
   });
   app.querySelectorAll("[data-team]").forEach(b=>b.onclick=()=>{
