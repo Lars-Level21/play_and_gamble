@@ -349,13 +349,8 @@ function clearCachedStrokeIndexMap(holes=S.holes){
 }
 function getStrokeIndexMap(holes=S.holes){
   const key = strokeIndexKey(holes);
-  const cached = getCachedStrokeIndexMap(holes);
   const current = sanitizeStrokeIndexMap(S.cfg[key] || Array(holes).fill(null), holes);
-  if(cached && current.every(v=>v==null)){
-    S.cfg[key] = cached.slice();
-  } else {
-    S.cfg[key] = current;
-  }
+  S.cfg[key] = current;
   return S.cfg[key];
 }
 function setStrokeIndexAt(idx, value, holes=S.holes){
@@ -408,8 +403,8 @@ function defaultCfg(game){
   if(game==="wolf")  return {partnerWin:1, loneWin:null, loneLoss:1, blindMult:2, carry:false, showGross:false}; // loneWin null => Anzahl Gegner
   if(game==="vegas") return {flip:true, cap:9, showGross:false};
   if(game==="aggregat") return {birdieDouble:false, showGross:false, aggregatNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
-  if(game==="skins") return {showGross:false, skinsNet:false, si9:makeRange(9), si18:makeRange(18)};
-  if(game==="matchplay") return {showGross:false, matchplayNet:false, si9:makeRange(9), si18:makeRange(18)};
+  if(game==="skins") return {showGross:false, skinsNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
+  if(game==="matchplay") return {showGross:false, matchplayNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
   return {};
 }
 
@@ -656,14 +651,16 @@ function configScreen(){
       </div>`;
   }
   const courseOptions = getCachedCourseNames().map(c=>`<option value="${escAttr(c)}"></option>`).join("");
-  return `${header(g.name,"Einstellungen",{back:"setup"})}
-    <main>
-      <div class="panel">
-        <div class="field"><label class="fl">Platz</label>
+  const courseField = (S.game==="aggregat"||S.game==="skins"||S.game==="matchplay") ? `
+        <div class="field"><label class="fl">Platz (nur Netto)</label>
           <input type="text" list="course-datalist" data-cfgv="course" value="${escAttr(S.course||"")}" placeholder="z. B. Bostalsee" autocomplete="off">
           <datalist id="course-datalist">${courseOptions}</datalist>
           <p class="hint">Optional: Sie können einen bekannten Platz wählen oder einen neuen Namen eingeben. Die SI-Werte werden pro Platz und Lochzahl gespeichert.</p>
-        </div>
+        </div>` : "";
+  return `${header(g.name,"Einstellungen",{back:"setup"})}
+    <main>
+      <div class="panel">
+        ${courseField}
         <div class="field"><label class="fl">Löcher</label>
           <div class="seg">
             <button data-seg="holes:9" class="${S.holes===9?"on":""}">9 Löcher</button>
