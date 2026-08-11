@@ -132,6 +132,15 @@
   .scorerow{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px}
   .scorerow .vn{font-size:15px; font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .scstep{display:flex; align-items:center; gap:8px; flex:0 0 auto}
+  .hcp-pipes{
+    min-width:16px;
+    text-align:right;
+    font-family:ui-monospace,monospace;
+    font-size:18px;
+    font-weight:800;
+    letter-spacing:1px;
+    color:var(--ink-soft);
+  }
   .scstep button{
     width:48px; height:48px; border-radius:12px; border:1.5px solid var(--line);
     background:var(--paper-2); font-size:26px; font-weight:800; color:var(--navy);
@@ -199,8 +208,10 @@
   .vteam h4{margin:0 0 8px; font-size:13px; letter-spacing:.04em}
   .vteam.team-a h4{color:var(--navy-dark)}
   .vteam.team-b h4{color:var(--lime-dark)}
-  .scorerow.team-a .vn{color:var(--navy-dark); font-weight:800}
-  .scorerow.team-b .vn{color:var(--lime-dark); font-weight:800}
+  .scorerow .vn{display:flex; align-items:center; gap:8px}
+  .tm-pipe{display:inline-block; width:4px; height:16px; border-radius:3px; background:transparent; flex:0 0 auto}
+  .tm-pipe.a{background:var(--navy)}
+  .tm-pipe.b{background:var(--lime)}
   .vscore{display:flex; align-items:center; gap:10px; margin-bottom:8px}
   .vscore .vn{flex:1; font-size:14px; font-weight:600}
   .vscore input{width:74px}
@@ -265,10 +276,21 @@
   .divider{height:1px; background:var(--line); margin:4px 0}
   .small-cfg{display:grid; grid-template-columns:1fr auto; gap:8px 12px; align-items:center; font-size:13.5px}
   .small-cfg input{width:70px; padding:9px}
+  .small-cfg .stepper{gap:8px}
+  .small-cfg .stepper button{width:40px; height:40px; border-radius:10px; font-size:22px}
+  .small-cfg .stepper .val{min-width:34px; font-size:24px}
   .si-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
   .si-cell{background:var(--paper-2); border:1.5px solid var(--line); border-radius:10px; padding:8px}
   .si-cell span{display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:6px; text-align:center}
   .si-cell select{width:100%; text-align:center; text-align-last:center; padding:9px 8px}
+  .si-actions{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px}
+  .si-actions .pick{margin-top:0}
+  .hcp-preview{margin-top:10px; border:1.5px solid var(--line); border-radius:10px; overflow:auto; background:#fff}
+  .hcp-preview table{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums}
+  .hcp-preview th,.hcp-preview td{padding:8px 10px; border-bottom:1px solid var(--line); text-align:center; font-size:12.5px}
+  .hcp-preview thead th{position:sticky; top:0; background:var(--paper-2); z-index:1}
+  .hcp-preview th:first-child,.hcp-preview td:first-child{text-align:left; font-weight:700; background:#f8faf6; position:sticky; left:0}
+  .hcp-preview tr:last-child td{border-bottom:0}
   .badge{display:inline-block;background:var(--navy-soft);color:var(--navy);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;letter-spacing:.03em}
   .tag-wolf{background:var(--lime-soft);color:var(--lime-dark)}
   details summary{list-style:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.02em;padding:4px 0;user-select:none}
@@ -593,7 +615,7 @@ function setupScreen(){
     ${bar(`<button class="btn primary" data-to="config">Weiter ›</button>`)}`;
 }
 
-/* Gemeinsamer HCP/Stroke-Index-Block für Netto-fähige Spielmodi */
+/* Gemeinsamer HCP-Block für Netto-fähige Spielmodi */
 function siHcpFields(isNet, bruttoHint, hcpNote="9 Loch: Rundenvorgabe = halbes HCP (gerundet)."){
   if(!isNet) return `<p class="hint">${bruttoHint}</p>`;
   const courseOptions = getCachedCourseNames().map(c=>`<option value="${escAttr(c)}"></option>`).join("");
@@ -607,7 +629,7 @@ function siHcpFields(isNet, bruttoHint, hcpNote="9 Loch: Rundenvorgabe = halbes 
     return `
       <div class="si-cell">
         <span>Bahn ${i+1}</span>
-        <select data-si="${i}" aria-label="Stroke Index Bahn ${i+1}">
+        <select data-si="${i}" aria-label="HCP Bahn ${i+1}">
           <option value="" ${si==null?"selected": ""}>\u2014</option>
           ${options}
         </select>
@@ -618,6 +640,23 @@ function siHcpFields(isNet, bruttoHint, hcpNote="9 Loch: Rundenvorgabe = halbes 
         <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
         <input type="number" data-hcp="${i}" value="${Number(p.hcp)||0}" min="0" max="54" step="1" aria-label="HCP Spieler ${i+1}">
       </div>`).join("");
+  const showPreview = !!S.cfg.showHcpPreview;
+  const previewHeader = S.players.map((p,i)=>`<th>${escHtml(p.name||("Sp."+(i+1)))}</th>`).join("");
+  const previewRows = makeRange(S.holes).map(h=>{
+    const cells = S.players.map((_,i)=>{
+      const strokes = hcpStrokesForHole(i, h);
+      return `<td>${hcpMarks(strokes)}</td>`;
+    }).join("");
+    return `<tr><td>Bahn ${h}</td>${cells}</tr>`;
+  }).join("");
+  const previewTable = showPreview
+    ? `<div class="hcp-preview" aria-live="polite">
+        <table>
+          <thead><tr><th>Bahn</th>${previewHeader}</tr></thead>
+          <tbody>${previewRows}</tbody>
+        </table>
+      </div>`
+    : "";
   return `
       <div class="field"><label class="fl">Playing HCP je Spieler</label>${hcpRows}
         <p class="hint">${hcpNote}</p>
@@ -625,12 +664,16 @@ function siHcpFields(isNet, bruttoHint, hcpNote="9 Loch: Rundenvorgabe = halbes 
       <div class="field"><label class="fl">Platz</label>
         <input type="text" list="course-datalist" data-cfgv="course" value="${escAttr(S.course||"")}" placeholder="z. B. Bostalsee" autocomplete="off">
         <datalist id="course-datalist">${courseOptions}</datalist>
-        <p class="hint">Optional: Sie können einen bekannten Platz wählen oder einen neuen Namen eingeben. Die SI-Werte werden pro Platz und Lochzahl gespeichert.</p>
+        <p class="hint">Optional: Sie können einen bekannten Platz wählen oder einen neuen Namen eingeben. Die HCP-Werte werden pro Platz und Lochzahl gespeichert.</p>
       </div>
-      <div class="field"><label class="fl">Stroke Index je Bahn (1 = schwerste)</label>
+      <div class="field"><label class="fl">HCP je Bahn (1 = schwerste)</label>
         <div class="si-grid">${siRows}</div>
-        <button class="pick muted wide" data-si-reset style="margin-top:8px">Alle SI leeren</button>
-        <p class="hint">Dropdown zeigt pro Bahn nur noch verfügbare SI-Werte.</p>
+        <div class="si-actions">
+          <button class="pick muted" data-si-reset>Alle HCP-Werte leeren</button>
+          <button class="pick muted" data-hcp-preview>${showPreview?"Spielvorgaben ausblenden":"Spielvorgaben anzeigen"}</button>
+        </div>
+        ${previewTable}
+        <p class="hint">Dropdown zeigt pro Bahn nur noch verfügbare HCP-Werte.</p>
       </div>`;
 }
 
@@ -643,13 +686,14 @@ function configScreen(){
       <div class="val">${S.cfg.pt}</div><button data-cfg="pt:1">+</button></div></div>`;
   }
   if(S.game==="wolf"){
+    const wolfValueRow = (label, key, val) => `<span>${label}</span><div class="stepper"><button data-wcfg="${key}:-1" ${val<=1?"disabled":""}>–</button><div class="val">${val}</div><button data-wcfg="${key}:1">+</button></div>`;
     extra = `
       <div class="field"><label class="fl">Punktwerte</label>
         <div class="small-cfg">
-          <span>Partner-Sieg (je Gewinner)</span><input type="number" data-cfgv="partnerWin" value="${S.cfg.partnerWin}" min="1">
-          <span>Lone-Wolf-Sieg</span><input type="number" data-cfgv="loneWin" value="${S.cfg.loneWin ?? (S.players.length-1)}" min="1">
-          <span>Lone-Wolf-Niederlage (je Gegner)</span><input type="number" data-cfgv="loneLoss" value="${S.cfg.loneLoss}" min="1">
-          <span>Blind-Wolf-Multiplikator</span><input type="number" data-cfgv="blindMult" value="${S.cfg.blindMult}" min="1">
+          ${wolfValueRow("Partner-Sieg (je Gewinner)", "partnerWin", S.cfg.partnerWin)}
+          ${wolfValueRow("Lone-Wolf-Sieg", "loneWin", S.cfg.loneWin ?? (S.players.length-1))}
+          ${wolfValueRow("Lone-Wolf-Niederlage (je Gegner)", "loneLoss", S.cfg.loneLoss)}
+          ${wolfValueRow("Blind-Wolf-Multiplikator", "blindMult", S.cfg.blindMult)}
         </div>
         <p class="hint">Lone-Wolf-Sieg-Default = Anzahl Gegner (${S.players.length-1}). Blind verdoppelt die Lone-Werte.</p>
       </div>
@@ -682,7 +726,7 @@ function configScreen(){
       </div>`;
   }
   if(S.game==="aggregat"){
-    const netOnlyFields = siHcpFields(S.cfg.aggregatNet, "Bei Brutto-Aggregat sind keine HCP- oder Stroke-Index-Angaben nötig.");
+    const netOnlyFields = siHcpFields(S.cfg.aggregatNet, "Bei Brutto-Aggregat sind keine HCP-Angaben nötig.");
     const teamPick = S.players.map((p,i)=>`
       <div class="vscore">
         <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
@@ -694,13 +738,6 @@ function configScreen(){
     extra = `
       <div class="field"><label class="fl">Teams (2 vs 2)</label>${teamPick}
         <p class="hint" id="teamwarn"></p></div>
-      <div class="field"><label class="fl">Aggregat-Wertung</label>
-        <div class="seg" style="margin-bottom:10px">
-          <button data-seg="aggregatNet:0" class="${!S.cfg.aggregatNet?"on":""}">Brutto-Aggregat</button>
-          <button data-seg="aggregatNet:1" class="${S.cfg.aggregatNet?"on":""}">Netto-Aggregat (HCP)</button>
-        </div>
-        <p class="hint">Bei Netto werden bester Einzelscore und Team-Summe auf Basis der Netto-Scores gewertet.</p>
-      </div>
       <div class="field"><label class="fl">Zusatzregel</label>
         <div class="seg">
           <button data-seg="birdieDouble:1" class="${S.cfg.birdieDouble?"on":""}">Birdie zählt doppelt</button>
@@ -708,10 +745,17 @@ function configScreen(){
         </div>
         <p class="hint">Gewinnt ein Team einen Punkt an einem Loch, an dem es ein Birdie (o. besser) gespielt hat, zählt dieser Punkt doppelt. Beide Wertungen doppeln unabhängig.</p>
       </div>
+      <div class="field"><label class="fl">Aggregat-Wertung</label>
+        <div class="seg" style="margin-bottom:10px">
+          <button data-seg="aggregatNet:0" class="${!S.cfg.aggregatNet?"on":""}">Brutto-Aggregat</button>
+          <button data-seg="aggregatNet:1" class="${S.cfg.aggregatNet?"on":""}">Netto-Aggregat (HCP)</button>
+        </div>
+        <p class="hint">Bei Netto werden bester Einzelscore und Team-Summe auf Basis der Netto-Scores gewertet.</p>
+      </div>
       ${netOnlyFields}`;
   }
   if(S.game==="skins"){
-    const netOnlyFields = siHcpFields(S.cfg.skinsNet, "Bei Brutto-Skins sind keine HCP- oder Stroke-Index-Angaben nötig.");
+    const netOnlyFields = siHcpFields(S.cfg.skinsNet, "Bei Brutto-Skins sind keine HCP-Angaben nötig.");
     extra += `
       <div class="field"><label class="fl">Skins-Wertung</label>
         <div class="seg" style="margin-bottom:10px">
@@ -723,8 +767,8 @@ function configScreen(){
       ${netOnlyFields}`;
   }
   if(S.game==="matchplay"){
-    const netOnlyFields = siHcpFields(S.cfg.matchplayNet, "Bei Brutto-Matchplay sind keine HCP- oder Stroke-Index-Angaben nötig.",
-      "Matchplay-Vorgabe: |PHCP A – PHCP B| ÷ 2 (18 Loch) bzw. ÷ 4 (9 Loch), aufgerundet. Der Spieler mit höherem PHCP erhält diese Schläge auf den Bahnen mit dem niedrigsten SI.");
+    const netOnlyFields = siHcpFields(S.cfg.matchplayNet, "Bei Brutto-Matchplay sind keine HCP-Angaben nötig.",
+      "Matchplay-Vorgabe: |PHCP A – PHCP B| ÷ 2 (18 Loch) bzw. ÷ 4 (9 Loch), aufgerundet. Der Spieler mit höherem PHCP erhält diese Schläge auf den Bahnen mit dem niedrigsten HCP.");
     extra = `
       <div class="field"><label class="fl">Matchplay-Wertung</label>
         <div class="seg" style="margin-bottom:10px">
@@ -809,6 +853,10 @@ function hcpStrokesForHole(i, h){
   const rest = rh % holes;
   const rank = effectiveStrokeIndexMap(holes)[h - 1] || (((h - 1) % holes) + 1);
   return base + (rank <= rest ? 1 : 0);
+}
+function hcpMarks(strokes){
+  const n = Math.max(0, Number(strokes) || 0);
+  return n>0 ? "|".repeat(n) : "";
 }
 function miniBoard(){
   const t = totals();
@@ -1026,8 +1074,8 @@ function aggregatHole(h){
     const idx = S.players.map((_,i)=>i).filter(i=>S.teams[i]===tm);
     const rows = idx.map(i=>{
       const vg = hcpStrokesForHole(i,h);
-      const label = S.cfg.aggregatNet && vg>0 ? `${nm(i)} (-${vg})` : nm(i);
-      return scoreStepper(i,"data-astep",r.scores[i], label, `team-${tm===0?"a":"b"}`);
+      const label = nm(i);
+      return scoreStepper(i,"data-astep",r.scores[i], label, `team-${tm===0?"a":"b"}`, S.cfg.aggregatNet ? vg : 0);
     }).join("");
     return `<div class="vteam team-${tm===0?"a":"b"}"><h4>Team ${tm===0?"A":"B"}</h4>${rows}</div>`;
   }).join("");
@@ -1043,7 +1091,7 @@ function aggregatHole(h){
       <div class="vresult" style="background:var(--turf-soft)"><span>Punkte dieses Loch</span><b class="big">A ${calc.tpts[0]} : ${calc.tpts[1]} B</b></div>`;
   }
   const netHint = S.cfg.aggregatNet
-    ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((p,i)=>`${escHtml(nm(i))} -${hcpStrokesForHole(i,h)}`).join(" · ")}</p>`
+    ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((p,i)=>`${escHtml(nm(i))} ${hcpMarks(hcpStrokesForHole(i,h))}`).join(" · ")}</p>`
     : "";
   return `<div class="panel">
     <div class="scorerow parrow"><span class="vn">PAR</span>${parStepper(par,"data-apar")}</div>
@@ -1111,8 +1159,8 @@ function skinsHole(h){
   const info = st.holeInfo[h] || {pot:1, winner:null, resolved:false, tie:false};
   const rows = S.players.map((p,i)=>{
     const vg = hcpStrokesForHole(i,h);
-    const label = S.cfg.skinsNet && vg>0 ? `${nm(i)} (-${vg})` : nm(i);
-    return scoreStepper(i,"data-sstep",r.scores[i], label);
+    const label = nm(i);
+    return scoreStepper(i,"data-sstep",r.scores[i], label, "", S.cfg.skinsNet ? vg : 0);
   }).join("");
   let res;
   const sk = n=>`${n} Skin${n>1?"s":""}`;
@@ -1125,7 +1173,7 @@ function skinsHole(h){
     res = `<div class="vresult"><span>Gleichstand – Carry</span><b class="big">${sk(info.pot)} → Loch ${h+1}</b></div>`;
   }
   const netHint = S.cfg.skinsNet
-    ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((p,i)=>`${escHtml(nm(i))} -${hcpStrokesForHole(i,h)}`).join(" · ")}</p>`
+    ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((p,i)=>`${escHtml(nm(i))} ${hcpMarks(hcpStrokesForHole(i,h))}`).join(" · ")}</p>`
     : "";
   const potBadge = (info.pot>1) ? `<span class="badge" style="background:var(--lime-soft);color:var(--lime-dark)">Pot: ${sk(info.pot)}</span>` : "";
   return `<div class="panel">
@@ -1180,8 +1228,8 @@ function matchplayHole(h){
   if(!r.prefilled){ S.players.forEach((_,i)=>{ if(r.scores[i]===""||r.scores[i]==null) r.scores[i]=par; }); r.prefilled=true; persist(); }
   const rows = S.players.map((_,i)=>{
     const holeS = S.cfg.matchplayNet ? matchplayStrokesOnHole(h) : [0,0];
-    const label = holeS[i]>0 ? `${nm(i)} (-1)` : nm(i);
-    return scoreStepper(i,"data-mpstep",r.scores[i],label, `team-${i===0?"a":"b"}`);
+    const label = nm(i);
+    return scoreStepper(i,"data-mpstep",r.scores[i],label, `team-${i===0?"a":"b"}`, holeS[i]);
   }).join("");
   const complete = S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
   let holeRes = `<p class="hint">Scores eingeben für das Loch-Ergebnis.</p>`;
@@ -1209,7 +1257,7 @@ function matchplayHole(h){
     if(weakerIdx < 0) return `<p class="hint">Beide Spieler gleich stark – keine Vorgabe.</p>`;
     const holeS = matchplayStrokesOnHole(h);
     const gets = holeS[weakerIdx] > 0 ? ` · Bahn ${h}: Schlag` : "";
-    return `<p class="hint">Matchplay-Vorgabe: ${escHtml(nm(weakerIdx))} erhält ${strokes} Schlag${strokes!==1?"e":""} (SI 1\u2013${strokes})${gets}</p>`;
+    return `<p class="hint">Matchplay-Vorgabe: ${escHtml(nm(weakerIdx))} erhält ${strokes} Schlag${strokes!==1?"e":""} (HCP 1\u2013${strokes})${gets}</p>`;
   })();
   return `<div class="panel">
     <div class="scorerow parrow"><span class="vn">PAR</span>${parStepper(par,"data-mppar")}</div>
@@ -1301,12 +1349,19 @@ function settleUp(t){
 
 /* ============================ Helpers ============================ */
 function bar(inner){ return `<div class="bar"><div class="bar-inner">${inner}</div></div>`; }
-function scoreStepper(i, attr, val, nameLabel, rowClass){
+function scoreStepper(i, attr, val, nameLabel, rowClass, strokeCount){
   const empty = (val===""||val==null);
   const label = nameLabel || nm(i);
+  const strokes = hcpMarks(strokeCount);
+  const pipe = rowClass==="team-a"
+    ? `<span class="tm-pipe a" aria-hidden="true"></span>`
+    : rowClass==="team-b"
+      ? `<span class="tm-pipe b" aria-hidden="true"></span>`
+      : "";
   return `<div class="scorerow ${rowClass||""}">
-    <span class="vn">${escHtml(label)}</span>
+    <span class="vn">${pipe}${escHtml(label)}</span>
     <div class="scstep">
+      <span class="hcp-pipes" aria-label="Vorgabe">${strokes}</span>
       <button ${attr}="${i}:-1" aria-label="minus">–</button>
       <span class="scval ${empty?"empty":""}">${empty?"–":val}</span>
       <button ${attr}="${i}:1" aria-label="plus">+</button>
@@ -1415,8 +1470,21 @@ function wire(){
     persist();
     render();
   };
+  const hcpPreview = app.querySelector("[data-hcp-preview]");
+  if(hcpPreview) hcpPreview.onclick=()=>{
+    S.cfg.showHcpPreview = !S.cfg.showHcpPreview;
+    persist();
+    render();
+  };
   app.querySelectorAll("[data-cfg]").forEach(b=>b.onclick=()=>{
     const [k,d]=b.dataset.cfg.split(":"); S.cfg[k]=Math.max(1,(S.cfg[k]||1)+Number(d)); persist(); render();
+  });
+  app.querySelectorAll("[data-wcfg]").forEach(b=>b.onclick=()=>{
+    const [k,d]=b.dataset.wcfg.split(":");
+    const cur = k==="loneWin" ? (S.cfg.loneWin ?? (S.players.length-1)) : (S.cfg[k]||1);
+    S.cfg[k]=Math.max(1, cur + Number(d));
+    persist();
+    render();
   });
   app.querySelectorAll("[data-cfgv]").forEach(inp=>inp.onchange=()=>{
     const k=inp.dataset.cfgv;
