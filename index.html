@@ -499,6 +499,24 @@ function defaultCfg(game){
   return {};
 }
 
+function isHoleCompleteByGame(r){
+  if(!r) return false;
+  if(S.game==="bbb") return ["bingo","bango","bongo"].every(k=>r[k]!=null);
+  if(S.game==="wolf") return !!(r.mode && r.won);
+  if(S.game==="vegas" || S.game==="aggregat" || S.game==="skins" || S.game==="matchplay"){
+    return Array.isArray(r.scores) && S.players.every((_,i)=>r.scores[i]!=="" && r.scores[i]!=null);
+  }
+  return false;
+}
+function ensureFinalizedFlags(){
+  if(!S || !S.results) return;
+  for(let h=1; h<=S.holes; h++){
+    const r = S.results[h];
+    if(!r || r.finalized!==undefined) continue;
+    r.finalized = isHoleCompleteByGame(r);
+  }
+}
+
 /* ============================ Boot ============================ */
 function boot(){
   const saved = store.get(SKEY);
@@ -540,6 +558,7 @@ function installMobileTapGuard(){
 function render(customHome){
   const app = document.getElementById("app");
   if(customHome){ app.innerHTML = customHome; wire(); return; }
+  ensureFinalizedFlags();
   let html="";
   switch(S.screen){
     case "setup":   html=setupScreen(); break;
@@ -828,8 +847,22 @@ function holeIsFinalized(h){
   if(!r) return false;
   if(r.finalized===true) return true;
   if(r.finalized===false) return false;
-  // Bestandsrunden ohne finalized-Flag: vergangene Bahnen als abgeschlossen behandeln.
-  return h < S.currentHole;
+  // Legacy-Fallback ohne finalized-Flag: vom Lochinhalt ableiten, nicht von der Position.
+  return isHoleCompleteByGame(r);
+}
+function recomputeWolfCarryMults(){
+  if(!S || S.game!=="wolf") return;
+  for(let h=1; h<=S.holes; h++){
+    const r = S.results[h];
+    if(r && Object.prototype.hasOwnProperty.call(r, "carryMult")) delete r.carryMult;
+  }
+  for(let h=1; h<=S.holes; h++){
+    const r = S.results[h];
+    if(!r || !holeIsFinalized(h) || r.won!=="tie" || !S.cfg.carry) continue;
+    const currentMult = Number(r.carryMult) || 1;
+    const nh = S.results[h+1] || (S.results[h+1] = {mode:null,partner:null,won:null});
+    nh.carryMult = currentMult + 1;
+  }
 }
 function teamTotals(){
   const team = [0,0];
@@ -1448,7 +1481,7 @@ function wire(){
   };
 
   app.querySelectorAll("[data-game]").forEach(b=>b.onclick=()=>{ S=freshState(b.dataset.game); persist(); render(); });
-  const rs = app.querySelector("[data-resume]"); if(rs) rs.onclick=()=>{ S=store.get(SKEY); render(); };
+  const rs = app.querySelector("[data-resume]"); if(rs) rs.onclick=()=>{ S=store.get(SKEY); ensureFinalizedFlags(); render(); };
   const cs = app.querySelector("[data-clearsaved]"); if(cs) cs.onclick=()=>{ store.del(SKEY); render(homeScreen(null)); };
 
   app.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>{
@@ -1628,22 +1661,20 @@ function wire(){
   if(nr) nr.onclick=()=>{ if(!confirm("Aktuelle Runde wirklich beenden?")) return; store.del(SKEY); S=null; render(homeScreen(null)); };
 }
 
-function finalizeWolf(h){ const c=wolfComputePts(h); if(!c) return; const r=S.results[h]; r.pts=c.pts;
-  // Carry: wenn Push mit Carry-Regel, nächstes Loch ×2
-  if(S.cfg.carry && r.won==="tie"){ const nh=S.results[h+1]||(S.results[h+1]={mode:null,partner:null,won:null}); nh.carryMult=(r.carryMult||1)+1; }
-  persist();
-}
+function finalizeWolf(h){ const c=wolfComputePts(h); if(!c) return; const r=S.results[h]; r.pts=c.pts; persist(); }
 function finalizeVegas(h){ const r=S.results[h]; if(!r) return; const par=(r.par!=null?r.par:S.par);
   const c=vegasCompute(h,r,par); if(!c){ r.tpts=[0,0]; return; }
   r.tpts=[0,0]; if(c.winner===0) r.tpts[0]=c.diff; else if(c.winner===1) r.tpts[1]=c.diff; persist();
 }
 function finalizeCurrent(){
   const h=S.currentHole;
+  if(S.game==="wolf") recomputeWolfCarryMults();
   if(S.game==="vegas") finalizeVegas(h);
   else if(S.game==="aggregat") finalizeAggregat(h);
   else if(S.game==="wolf") finalizeWolf(h);
   const r=S.results[h]||(S.results[h]={});
   r.finalized=true;
+  if(S.game==="wolf") recomputeWolfCarryMults();
   persist();
 }
 
