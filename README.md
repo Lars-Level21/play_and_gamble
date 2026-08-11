@@ -16,10 +16,14 @@ Eine Progressive Web App (PWA) für Golf-Zockformate. Läuft vollständig im Bro
 ## Features
 
 - Spieleranzahl und Namen frei wählbar (werden lokal gespeichert)
+- Setup-Steuerung mit großen +/- Steppern für mobile Eingaben (u. a. Wolf-Punktwerte)
 - Einsatz in € konfigurierbar – automatische Netto-Abrechnung am Ende
 - Live-Leaderboard im Header: relative Differenz statt Absolutwerte (Matchplay: AS/+2/−2; Vegas/Aggregat: Teamdifferenz)
 - Unterbrochene Runden werden automatisch gespeichert und können fortgesetzt werden
-- Netto-Modus (Aggregat, Skins, Matchplay) mit Playing HCP und Stroke-Index-Konfiguration je Bahn
+- Netto-Modus (Aggregat, Skins, Matchplay) mit Playing HCP und HCP-Konfiguration je Bahn
+- HCP-Profile werden je Platz und Lochzahl (9/18) zwischengespeichert und wiederverwendet
+- Inline-Ansicht "Spielvorgaben anzeigen" mit Übersicht für alle Spieler und Bahnen
+- Vorgabeschläge im Lochscreen als Strichnotation direkt an der Score-Eingabe
 - Installierbar als PWA (Home-Screen-Icon, Offline-Betrieb via Service Worker)
 - Keine Abhängigkeiten, kein Build-Schritt – eine einzige `index.html`
 
