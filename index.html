@@ -28,6 +28,7 @@
     --tap:52px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  button,.btn,.pick,.holesel{touch-action:manipulation}
   html,body{margin:0;background:var(--navy-dark)}
   body{
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -60,8 +61,21 @@
   }
   .htitle{font-size:20px; font-weight:800; letter-spacing:-.01em; margin:6px 0 0; color:#fff}
   .hsub{font-size:12.5px; color:#AFC9DE; margin-top:2px}
+  .headplaybar{display:flex; align-items:center; gap:8px; margin-top:12px}
+  .hmeta{display:flex; justify-content:flex-end; align-items:center}
+  .hole-indicator{
+    width:48px; height:48px; padding:0;
+    border-radius:50%; border:1.5px solid #aeb9c6;
+    background:#ffffff; color:#111111;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-variant-numeric:tabular-nums;
+    font-weight:900; font-size:20px; letter-spacing:.02em;
+    transform-origin:center;
+  }
+  .hole-indicator.pulse{animation:holePulse .42s ease}
   /* mini leaderboard in header */
-  .mini{display:flex; gap:6px; margin-top:12px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none}
+  .mini{display:flex; align-items:center; gap:6px; margin-top:0; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; flex:1; min-width:0}
   .mini::-webkit-scrollbar{display:none}
   .chip{
     flex:0 0 auto; background:#0d426f; border:1px solid #1c5688; color:#EAF2F9;
@@ -130,15 +144,8 @@
   }
   .scval.empty{color:var(--ink-soft); font-weight:600}
   /* Par-Stepper im Loch-Kopf */
-  .parstep{display:flex; align-items:center; gap:8px}
-  .parstep .parlbl{font-size:12px; color:var(--ink-soft); font-weight:800; letter-spacing:.04em; text-transform:uppercase}
-  .parstep button{
-    width:48px; height:48px; border-radius:11px; border:1.5px solid var(--line);
-    background:var(--paper-2); font-size:23px; font-weight:800; color:var(--navy); cursor:pointer; line-height:1;
-    display:grid; place-items:center; transition:background .08s;
-  }
-  .parstep button:active{transform:translateY(1px); background:var(--navy-soft)}
-  .parstep .parval{font-family:ui-monospace,monospace; font-size:22px; font-weight:800; min-width:26px; text-align:center; color:var(--navy)}
+  .parrow .vn{font-size:12px; color:var(--ink-soft); font-weight:800; letter-spacing:.05em; text-transform:uppercase}
+  .parstep .scval{color:var(--navy)}
   /* stepper */
   .stepper{display:flex; align-items:center; gap:12px}
   .stepper button{
@@ -156,6 +163,10 @@
     color:var(--ink-soft); cursor:pointer; min-height:var(--tap);
   }
   .seg button.on{background:var(--turf); color:#fff}
+  .seg button.team-a{background:#E7EEF5; color:#1F4C74}
+  .seg button.team-b{background:#EDF2DA; color:#5E7610}
+  .seg button.team-a.on{background:var(--navy); color:#fff}
+  .seg button.team-b.on{background:var(--lime); color:#1C2705}
   /* player name rows */
   .prow{display:flex; align-items:center; gap:10px; margin-bottom:10px}
   .pnum{
@@ -186,6 +197,10 @@
   /* vegas score row */
   .vteam{margin-bottom:14px}
   .vteam h4{margin:0 0 8px; font-size:13px; letter-spacing:.04em}
+  .vteam.team-a h4{color:var(--navy-dark)}
+  .vteam.team-b h4{color:var(--lime-dark)}
+  .scorerow.team-a .vn{color:var(--navy-dark); font-weight:800}
+  .scorerow.team-b .vn{color:var(--lime-dark); font-weight:800}
   .vscore{display:flex; align-items:center; gap:10px; margin-bottom:8px}
   .vscore .vn{flex:1; font-size:14px; font-weight:600}
   .vscore input{width:74px}
@@ -260,7 +275,22 @@
   details summary::-webkit-details-marker{display:none}
   details summary::after{content:" \25B8";font-size:10px}
   details[open] summary::after{content:" \25BE";font-size:10px}
+  main.playturn{animation:slideFadeNext .34s cubic-bezier(.22,.72,.22,1) both}
+  main.playturn.prev{animation-name:slideFadePrev}
   @keyframes fadein{from{opacity:.5}to{opacity:1}}
+  @keyframes holePulse{
+    0%{transform:scale(1)}
+    45%{transform:scale(1.2)}
+    100%{transform:scale(1)}
+  }
+  @keyframes slideFadeNext{
+    0%{transform:translateX(36px); opacity:.55}
+    100%{transform:translateX(0); opacity:1}
+  }
+  @keyframes slideFadePrev{
+    0%{transform:translateX(-36px); opacity:.55}
+    100%{transform:translateX(0); opacity:1}
+  }
   @media (max-width:360px){ .grid{grid-template-columns:1fr} }
 </style>
 </head>
@@ -298,6 +328,7 @@ const GAMES = {
           desc:"Loch-für-Loch-Duell: wer das Loch gewinnt, geht 'up'. Am Ende gewinnt, wer öfter vorne liegt."}
 };
 let S = null;
+let holeTransitionDir = null;
 
 function makeRange(n){ return Array.from({length:n},(_,i)=>i+1); }
 function sanitizeStrokeIndexMap(arr, holes){
@@ -447,6 +478,31 @@ function boot(){
 function persist(){ if(S) store.set(SKEY, S); }
 function go(screen){ S.screen=screen; persist(); render(); }
 
+// iOS fallback: verhindert Double-Tap-Zoom auf schnellen Score-/Hole-Taps.
+function installMobileTapGuard(){
+  let lastTapAt = 0;
+  let lastX = 0;
+  let lastY = 0;
+  const guardSelector = [
+    "[data-vstep]","[data-astep]","[data-mpstep]","[data-bstep]","[data-wstep]","[data-sstep]",
+    "[data-vpar]","[data-apar]","[data-mppar]","[data-hole]","[data-next]"
+  ].join(",");
+  document.addEventListener("touchend", (ev)=>{
+    const t = ev.target;
+    if(!(t instanceof Element) || !t.closest(guardSelector)) return;
+    const now = Date.now();
+    const touch = ev.changedTouches && ev.changedTouches[0];
+    const x = touch ? touch.clientX : 0;
+    const y = touch ? touch.clientY : 0;
+    const rapid = (now - lastTapAt) < 320;
+    const near = Math.abs(x - lastX) < 26 && Math.abs(y - lastY) < 26;
+    if(rapid && near) ev.preventDefault();
+    lastTapAt = now;
+    lastX = x;
+    lastY = y;
+  }, {passive:false});
+}
+
 /* ============================ Router ============================ */
 function render(customHome){
   const app = document.getElementById("app");
@@ -469,6 +525,12 @@ function header(title, sub, opts={}){
   const back = opts.back ? `data-back="${opts.back}"` : "disabled";
   const backLabel = opts.backLabel || "Zurück";
   const mini = opts.mini || "";
+  const holeBadge = opts.holeNumber!=null
+    ? `<div class="hmeta"><span class="hole-indicator ${opts.holePulse?"pulse":""}">${opts.holeNumber}</span></div>`
+    : "";
+  const playMeta = mini || holeBadge
+    ? `<div class="headplaybar">${mini}${holeBadge}</div>`
+    : "";
   return `<header>
     <div class="hrow">
       <button class="back" ${back}>&#x2039; ${backLabel}</button>
@@ -476,7 +538,7 @@ function header(title, sub, opts={}){
     </div>
     <div class="htitle">${title}</div>
     ${sub?`<div class="hsub">${sub}</div>`:""}
-    ${mini}
+    ${playMeta}
   </header>`;
 }
 
@@ -603,8 +665,8 @@ function configScreen(){
       <div class="vscore">
         <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
         <div class="seg" style="width:150px">
-          <button data-team="${i}:0" class="${S.teams[i]===0?"on":""}">Team A</button>
-          <button data-team="${i}:1" class="${S.teams[i]===1?"on":""}">Team B</button>
+          <button data-team="${i}:0" class="team-a ${S.teams[i]===0?"on":""}">Team A</button>
+          <button data-team="${i}:1" class="team-b ${S.teams[i]===1?"on":""}">Team B</button>
         </div>
       </div>`).join("");
     extra = `
@@ -625,8 +687,8 @@ function configScreen(){
       <div class="vscore">
         <span class="vn">${escHtml(p.name||("Spieler "+(i+1)))}</span>
         <div class="seg" style="width:150px">
-          <button data-team="${i}:0" class="${S.teams[i]===0?"on":""}">Team A</button>
-          <button data-team="${i}:1" class="${S.teams[i]===1?"on":""}">Team B</button>
+          <button data-team="${i}:0" class="team-a ${S.teams[i]===0?"on":""}">Team A</button>
+          <button data-team="${i}:1" class="team-b ${S.teams[i]===1?"on":""}">Team B</button>
         </div>
       </div>`).join("");
     extra = `
@@ -777,6 +839,8 @@ function playScreen(){
   const g = GAMES[S.game];
   const h = S.currentHole;
   const mini = miniBoard();
+  const turnDir = holeTransitionDir;
+  holeTransitionDir = null;
   let body="";
   if(S.game==="bbb")   body=bbbHole(h);
   if(S.game==="wolf")  body=wolfHole(h);
@@ -797,8 +861,10 @@ function playScreen(){
   const cta = last
     ? `<button class="btn primary" data-summary>Abrechnung ›</button>`
     : `<button class="btn primary" data-next>Loch abschließen ›</button>`;
-  return `${header(g.name, null, {back:"config", mini, backLabel:"Setup"})}
-    <main>${body}</main>
+  const turnClass = turnDir ? `playturn ${turnDir}` : "";
+  const holeNumber = String(h).padStart(2, "0");
+  return `${header(g.name, null, {back:"config", mini, backLabel:"Setup", holeNumber, holePulse:!!turnDir})}
+    <main class="${turnClass}">${body}</main>
     ${bar(navHtml + cta)}`;
 }
 
@@ -823,7 +889,6 @@ function bbbHole(h){
       <div style="margin-top:8px">${grossRows}</div>
     </details>` : "";
   return `<div class="panel">
-    <div class="holebar"><span class="holetag">Loch ${h}</span></div>
     ${line("bingo","Bingo","erster aufs Grün")}
     ${line("bango","Bango","näher zur Fahne")}
     ${line("bongo","Bongo","erster eingelocht")}
@@ -871,7 +936,7 @@ function wolfHole(h){
     `<b style="${i===wolf?"color:var(--navy)":"color:var(--ink-soft);font-weight:400"}">${escHtml(nm(i))}</b>`
   ).join("");
   return `<div class="panel">
-    <div class="holebar"><span class="holetag">Loch ${h}</span><span class="badge tag-wolf">🐺 Wolf: ${escHtml(nm(wolf))}</span></div>
+    <div style="margin-bottom:8px"><span class="badge tag-wolf">🐺 Wolf: ${escHtml(nm(wolf))}</span></div>
     <div style="font-size:11.5px;margin:4px 0 12px">${rotHtml}</div>
     <div class="field">
       <label class="fl">${escHtml(nm(wolf))} entscheidet</label>
@@ -911,8 +976,8 @@ function vegasHole(h){
   if(!r.prefilled){ S.players.forEach((_,i)=>{ if(r.scores[i]===""||r.scores[i]==null) r.scores[i]=par; }); r.prefilled=true; persist(); }
   const teamRows = [0,1].map(tm=>{
     const idx = S.players.map((_,i)=>i).filter(i=>S.teams[i]===tm);
-    const rows = idx.map(i=>scoreStepper(i,"data-vstep",r.scores[i])).join("");
-    return `<div class="vteam"><h4>Team ${tm===0?"A":"B"}</h4>${rows}</div>`;
+    const rows = idx.map(i=>scoreStepper(i,"data-vstep",r.scores[i], null, `team-${tm===0?"a":"b"}`)).join("");
+    return `<div class="vteam team-${tm===0?"a":"b"}"><h4>Team ${tm===0?"A":"B"}</h4>${rows}</div>`;
   }).join("");
   const calc = vegasCompute(h, r, par);
   const resBox = calc ? `<div class="vresult">
@@ -924,7 +989,7 @@ function vegasHole(h){
       <b class="big">${calc.diff>0?"+"+calc.diff:"0"} Pkt</b>
     </div>` : `<p class="hint">Alle vier Schläge eingeben für die Berechnung.</p>`;
   return `<div class="panel">
-    <div class="holebar"><span class="holetag">Loch ${h}</span>${parStepper(par,"data-vpar")}</div>
+    <div class="scorerow parrow"><span class="vn">PAR</span>${parStepper(par,"data-vpar")}</div>
     ${teamRows}
     ${resBox}
   </div>`;
@@ -962,9 +1027,9 @@ function aggregatHole(h){
     const rows = idx.map(i=>{
       const vg = hcpStrokesForHole(i,h);
       const label = S.cfg.aggregatNet && vg>0 ? `${nm(i)} (-${vg})` : nm(i);
-      return scoreStepper(i,"data-astep",r.scores[i], label);
+      return scoreStepper(i,"data-astep",r.scores[i], label, `team-${tm===0?"a":"b"}`);
     }).join("");
-    return `<div class="vteam"><h4>Team ${tm===0?"A":"B"}</h4>${rows}</div>`;
+    return `<div class="vteam team-${tm===0?"a":"b"}"><h4>Team ${tm===0?"A":"B"}</h4>${rows}</div>`;
   }).join("");
   const calc = aggregatCompute(h,r,par);
   let resBox = `<p class="hint">Alle vier Schläge eingeben für die Berechnung.</p>`;
@@ -981,7 +1046,7 @@ function aggregatHole(h){
     ? `<p class="hint">Netto aktiv: Vorgabe auf Bahn ${h} = ${S.players.map((p,i)=>`${escHtml(nm(i))} -${hcpStrokesForHole(i,h)}`).join(" · ")}</p>`
     : "";
   return `<div class="panel">
-    <div class="holebar"><span class="holetag">Loch ${h}</span>${parStepper(par,"data-apar")}</div>
+    <div class="scorerow parrow"><span class="vn">PAR</span>${parStepper(par,"data-apar")}</div>
     ${teamRows}
     ${resBox}
     ${netHint}
@@ -1064,7 +1129,7 @@ function skinsHole(h){
     : "";
   const potBadge = (info.pot>1) ? `<span class="badge" style="background:var(--lime-soft);color:var(--lime-dark)">Pot: ${sk(info.pot)}</span>` : "";
   return `<div class="panel">
-    <div class="holebar"><span class="holetag">Loch ${h}</span>${potBadge}</div>
+    <div style="margin-bottom:8px">${potBadge}</div>
     ${rows}
     ${res}
     ${netHint}
@@ -1116,7 +1181,7 @@ function matchplayHole(h){
   const rows = S.players.map((_,i)=>{
     const holeS = S.cfg.matchplayNet ? matchplayStrokesOnHole(h) : [0,0];
     const label = holeS[i]>0 ? `${nm(i)} (-1)` : nm(i);
-    return scoreStepper(i,"data-mpstep",r.scores[i],label);
+    return scoreStepper(i,"data-mpstep",r.scores[i],label, `team-${i===0?"a":"b"}`);
   }).join("");
   const complete = S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
   let holeRes = `<p class="hint">Scores eingeben für das Loch-Ergebnis.</p>`;
@@ -1147,7 +1212,7 @@ function matchplayHole(h){
     return `<p class="hint">Matchplay-Vorgabe: ${escHtml(nm(weakerIdx))} erhält ${strokes} Schlag${strokes!==1?"e":""} (SI 1\u2013${strokes})${gets}</p>`;
   })();
   return `<div class="panel">
-    <div class="holebar"><span class="holetag">Loch ${h}</span>${parStepper(par,"data-mppar")}</div>
+    <div class="scorerow parrow"><span class="vn">PAR</span>${parStepper(par,"data-mppar")}</div>
     ${rows}
     ${holeRes}
     ${statusBox}
@@ -1236,10 +1301,10 @@ function settleUp(t){
 
 /* ============================ Helpers ============================ */
 function bar(inner){ return `<div class="bar"><div class="bar-inner">${inner}</div></div>`; }
-function scoreStepper(i, attr, val, nameLabel){
+function scoreStepper(i, attr, val, nameLabel, rowClass){
   const empty = (val===""||val==null);
   const label = nameLabel || nm(i);
-  return `<div class="scorerow">
+  return `<div class="scorerow ${rowClass||""}">
     <span class="vn">${escHtml(label)}</span>
     <div class="scstep">
       <button ${attr}="${i}:-1" aria-label="minus">–</button>
@@ -1249,10 +1314,9 @@ function scoreStepper(i, attr, val, nameLabel){
   </div>`;
 }
 function parStepper(par, attr){
-  return `<div class="parstep">
-    <span class="parlbl">Par</span>
+  return `<div class="scstep parstep">
     <button ${attr}="-1" aria-label="Par minus">–</button>
-    <span class="parval">${par}</span>
+    <span class="scval">${par}</span>
     <button ${attr}="1" aria-label="Par plus">+</button>
   </div>`;
 }
@@ -1267,6 +1331,16 @@ function escAttr(s){ return escHtml(s).replace(/"/g,"&quot;"); }
 function readNames(){ document.querySelectorAll("[data-name]").forEach(inp=>{ S.players[+inp.dataset.name].name = inp.value.trim(); }); }
 function wire(){
   const app = document.getElementById("app");
+  const goToHole = (targetHole)=>{
+    const nextHole = Math.min(S.holes, Math.max(1, Number(targetHole) || S.currentHole));
+    const prevHole = S.currentHole;
+    if(nextHole===prevHole) return;
+    finalizeCurrent();
+    holeTransitionDir = nextHole>prevHole ? "next" : "prev";
+    S.currentHole = nextHole;
+    persist();
+    render();
+  };
 
   const homeBtn = app.querySelector(".brand-logo");
   if(homeBtn) homeBtn.onclick=()=>{
@@ -1371,20 +1445,15 @@ function wire(){
 
   // play – hole nav
   app.querySelectorAll("[data-hole]").forEach(b=>b.onclick=()=>{
-    finalizeCurrent();
-    S.currentHole=Math.min(S.holes,Math.max(1,S.currentHole+Number(b.dataset.hole))); persist(); render();
+    goToHole(S.currentHole + Number(b.dataset.hole));
   });
   const holeSelect = app.querySelector("[data-hole-select]");
   if(holeSelect) holeSelect.onchange=()=>{
-    finalizeCurrent();
-    S.currentHole = Math.min(S.holes, Math.max(1, Number(holeSelect.value)));
-    persist();
-    render();
+    goToHole(Number(holeSelect.value));
   };
   const next=app.querySelector("[data-next]");
   if(next) next.onclick=()=>{
-    finalizeCurrent();
-    S.currentHole=Math.min(S.holes,S.currentHole+1); persist(); render();
+    goToHole(S.currentHole + 1);
   };
   const sm=app.querySelector("[data-summary]");
   if(sm) sm.onclick=()=>{ finalizeCurrent(); go("summary"); };
@@ -1459,6 +1528,7 @@ function finalizeCurrent(){
 }
 
 boot();
+installMobileTapGuard();
 
 // PWA: Service Worker registrieren (nur über https / localhost aktiv)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
