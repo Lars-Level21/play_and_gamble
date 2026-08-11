@@ -28,7 +28,7 @@
     --tap:52px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  button,.btn,.pick,.holesel{touch-action:manipulation}
+  button,.btn,.pick,.holesel,.hole-indicator-select{touch-action:manipulation}
   html,body{margin:0;background:var(--navy-dark)}
   body{
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -73,6 +73,17 @@
     font-weight:900; font-size:20px; letter-spacing:.02em;
     transform-origin:center;
   }
+  .hole-indicator-select{
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    background-image:none;
+    cursor:pointer;
+    text-align:center;
+    text-align-last:center;
+    padding:0;
+  }
+  .hole-indicator-select::-ms-expand{display:none}
   .hole-indicator.pulse{animation:holePulse .42s ease}
   /* mini leaderboard in header */
   .mini{display:flex; align-items:center; gap:6px; margin-top:0; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; flex:1; min-width:0}
@@ -548,7 +559,10 @@ function header(title, sub, opts={}){
   const backLabel = opts.backLabel || "Zurück";
   const mini = opts.mini || "";
   const holeBadge = opts.holeNumber!=null
-    ? `<div class="hmeta"><span class="hole-indicator ${opts.holePulse?"pulse":""}">${opts.holeNumber}</span></div>`
+    ? `<div class="hmeta">${opts.holeSelectOptions
+      ? `<select class="hole-indicator hole-indicator-select ${opts.holePulse?"pulse":""}" data-hole-select aria-label="Bahn wählen">${opts.holeSelectOptions}</select>`
+      : `<span class="hole-indicator ${opts.holePulse?"pulse":""}">${opts.holeNumber}</span>`
+    }</div>`
     : "";
   const playMeta = mini || holeBadge
     ? `<div class="headplaybar">${mini}${holeBadge}</div>`
@@ -809,18 +823,44 @@ function configScreen(){
 }
 
 /* --- Leaderboard-Berechnung --- */
+function holeIsFinalized(h){
+  const r = S.results[h];
+  if(!r) return false;
+  if(r.finalized===true) return true;
+  if(r.finalized===false) return false;
+  // Bestandsrunden ohne finalized-Flag: vergangene Bahnen als abgeschlossen behandeln.
+  return h < S.currentHole;
+}
+function teamTotals(){
+  const team = [0,0];
+  for(let h=1; h<=S.holes; h++){
+    if(!holeIsFinalized(h)) continue;
+    const r = S.results[h];
+    if(r && r.tpts){
+      team[0] += Number(r.tpts[0]) || 0;
+      team[1] += Number(r.tpts[1]) || 0;
+    }
+  }
+  return team;
+}
 function totals(){
   const t = S.players.map(()=>0);
   if(S.game==="bbb"){
-    Object.values(S.results).forEach(r=>{
+    for(let h=1; h<=S.holes; h++){
+      if(!holeIsFinalized(h)) continue;
+      const r = S.results[h];
+      if(!r) continue;
       ["bingo","bango","bongo"].forEach(k=>{ if(r[k]!=null) t[r[k]]+=S.cfg.pt; });
-    });
+    }
   } else if(S.game==="wolf"){
-    Object.values(S.results).forEach(r=>{ if(r.pts) r.pts.forEach((v,i)=>t[i]+=v); });
+    for(let h=1; h<=S.holes; h++){
+      if(!holeIsFinalized(h)) continue;
+      const r = S.results[h];
+      if(r && r.pts) r.pts.forEach((v,i)=>t[i]+=v);
+    }
   } else if(S.game==="vegas"||S.game==="aggregat"){
     // Team-Punkte, dann auf Spieler verteilt
-    const team=[0,0];
-    Object.values(S.results).forEach(r=>{ if(r.tpts){ team[0]+=r.tpts[0]; team[1]+=r.tpts[1]; } });
+    const team = teamTotals();
     S.players.forEach((p,i)=>{ t[i]=team[S.teams[i]]; });
   } else if(S.game==="skins"){
     return skinsState().per;
@@ -833,6 +873,7 @@ function grossTotals(){
   const g = S.players.map(()=>0);
   let counted = 0;
   for(let h=1; h<=S.holes; h++){
+    if(!holeIsFinalized(h)) continue;
     const r = S.results[h];
     if(!r || !Array.isArray(r.scores)) continue;
     const complete = S.players.every((_,i)=>r.scores[i]!=="" && r.scores[i]!=null);
@@ -869,8 +910,7 @@ function miniBoard(){
       const rel = i===0?diff:-diff;
       val = rel===0?"AS":(rel>0?`${rel} up`:`${Math.abs(rel)} down`);
     } else if(S.game==="vegas"||S.game==="aggregat"){
-      const team=[0,0];
-      Object.values(S.results).forEach(r=>{ if(r.tpts){ team[0]+=r.tpts[0]; team[1]+=r.tpts[1]; } });
+      const team = teamTotals();
       const d=team[S.teams[i]]-team[1-S.teams[i]];
       val=d===0?"0":(d>0?`+${d}`:String(d));
     }
@@ -899,11 +939,10 @@ function playScreen(){
   const last = h>=S.holes;
   const holeOptions = Array.from({length:S.holes}, (_,i)=>{
     const n = i + 1;
-    return `<option value="${n}" ${n===h?"selected":""}>Bahn ${n}</option>`;
+    return `<option value="${n}" ${n===h?"selected":""}>${String(n).padStart(2, "0")}</option>`;
   }).join("");
   const navHtml = `<div class="holenav">
       <button class="btn ghost" data-hole="-1" ${h<=1?"disabled":""}>‹</button>
-      <select class="holesel" data-hole-select aria-label="Bahn wählen">${holeOptions}</select>
       <button class="btn ghost" data-hole="1" ${last?"disabled":""}>›</button>
     </div>`;
   const cta = last
@@ -911,7 +950,7 @@ function playScreen(){
     : `<button class="btn primary" data-next>Loch abschließen ›</button>`;
   const turnClass = turnDir ? `playturn ${turnDir}` : "";
   const holeNumber = String(h).padStart(2, "0");
-  return `${header(g.name, null, {back:"config", mini, backLabel:"Setup", holeNumber, holePulse:!!turnDir})}
+  return `${header(g.name, null, {back:"config", mini, backLabel:"Setup", holeNumber, holePulse:!!turnDir, holeSelectOptions:holeOptions})}
     <main class="${turnClass}">${body}</main>
     ${bar(navHtml + cta)}`;
 }
@@ -1139,6 +1178,10 @@ function skinsState(){
   let carried = 0;
   for(let h=1; h<=S.holes; h++){
     const r = S.results[h];
+    if(!holeIsFinalized(h)){
+      holeInfo[h] = {pot:carried + 1, winner:null, resolved:false, tie:false};
+      continue;
+    }
     const complete = r && r.scores && S.players.every((_,i)=>r.scores[i]!=="" && r.scores[i]!=null);
     const pot = carried + 1;
     if(!complete){ holeInfo[h] = {pot, winner:null, resolved:false, tie:false}; continue; }
@@ -1206,6 +1249,7 @@ function matchplayState(){
   let holesPlayed = 0;
   for(let h=1; h<=S.holes; h++){
     const r = S.results[h];
+    if(!holeIsFinalized(h)) continue;
     if(!r || !r.scores) continue;
     const complete = S.players.every((_,i)=>r.scores[i]!==""&&r.scores[i]!=null);
     if(!complete) continue;
@@ -1390,7 +1434,6 @@ function wire(){
     const nextHole = Math.min(S.holes, Math.max(1, Number(targetHole) || S.currentHole));
     const prevHole = S.currentHole;
     if(nextHole===prevHole) return;
-    finalizeCurrent();
     holeTransitionDir = nextHole>prevHole ? "next" : "prev";
     S.currentHole = nextHole;
     persist();
@@ -1521,6 +1564,7 @@ function wire(){
   };
   const next=app.querySelector("[data-next]");
   if(next) next.onclick=()=>{
+    finalizeCurrent();
     goToHole(S.currentHole + 1);
   };
   const sm=app.querySelector("[data-summary]");
@@ -1529,7 +1573,7 @@ function wire(){
   // BBB picks
   app.querySelectorAll("[data-bbb]").forEach(b=>b.onclick=()=>{
     const [key,val]=b.dataset.bbb.split(":"); const h=S.currentHole;
-    const r=S.results[h]||(S.results[h]={}); r[key]= val==="null"?null:Number(val); persist(); render();
+    const r=S.results[h]||(S.results[h]={}); r[key]= val==="null"?null:Number(val); r.finalized=false; persist(); render();
   });
 
   // Wolf picks
@@ -1539,6 +1583,7 @@ function wire(){
     if(k==="partner"){ r.mode="partner"; r.partner=Number(v); }
     else if(k==="mode"){ r.mode=v; r.partner=null; }
     else if(k==="won"){ r.won=v; }
+    r.finalized=false;
     persist(); render();
   });
 
@@ -1549,6 +1594,7 @@ function wire(){
     const oldPar=(r.par!=null?r.par:S.par);
     const newPar=Math.min(6,Math.max(3,oldPar+Number(b.getAttribute(attr))));
     r.par=newPar; r.prefilled=true;
+    r.finalized=false;
     S.players.forEach((_,i)=>{ if(r.scores[i]===""||r.scores[i]==null||Number(r.scores[i])===oldPar) r.scores[i]=newPar; });
     persist(); render();
   });
@@ -1561,7 +1607,9 @@ function wire(){
     if(!Array.isArray(r.scores)) r.scores=S.players.map(()=>"");
     const def = initFromPar ? (r.par!=null?r.par:S.par) : 4;
     const cur=(r.scores[i]===""||r.scores[i]==null)?def:Number(r.scores[i]);
-    r.scores[i]=Math.min(15,Math.max(1,cur+d)); persist(); render();
+    r.scores[i]=Math.min(15,Math.max(1,cur+d));
+    r.finalized=false;
+    persist(); render();
   });
   scoreAdjust("data-vstep"); scoreAdjust("data-astep"); scoreAdjust("data-mpstep");
   scoreAdjust("data-bstep", false); scoreAdjust("data-wstep", false);
@@ -1572,6 +1620,7 @@ function wire(){
     const r=S.results[h]||(S.results[h]={scores:S.players.map(()=>"")});
     if(r.scores[i]===""||r.scores[i]==null){ r.scores[i]=4; }
     else { r.scores[i]=Math.min(15,Math.max(1,Number(r.scores[i])+d)); }
+    r.finalized=false;
     persist(); render();
   });
 
@@ -1593,6 +1642,9 @@ function finalizeCurrent(){
   if(S.game==="vegas") finalizeVegas(h);
   else if(S.game==="aggregat") finalizeAggregat(h);
   else if(S.game==="wolf") finalizeWolf(h);
+  const r=S.results[h]||(S.results[h]={});
+  r.finalized=true;
+  persist();
 }
 
 boot();
