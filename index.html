@@ -241,6 +241,7 @@
   .board tr.win td{color:var(--turf-dark)}
   .board td .rk{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--paper);font-size:11px;font-weight:800;margin-right:8px;font-family:ui-monospace,monospace}
   .board tr:first-child td .rk{background:var(--lime);color:#1c2705}
+  .team-members{display:block;font-size:12px;color:var(--ink-soft);margin-top:2px}
   .settle{margin-top:10px; font-size:14px}
   .settle div{padding:8px 0; border-bottom:1px dashed var(--line); display:flex; justify-content:space-between}
   .settle .amt{font-family:ui-monospace,monospace; font-weight:700}
@@ -776,7 +777,7 @@ function configScreen(){
           <button data-seg="birdieDouble:1" class="${S.cfg.birdieDouble?"on":""}">Birdie zählt doppelt</button>
           <button data-seg="birdieDouble:0" class="${!S.cfg.birdieDouble?"on":""}">aus</button>
         </div>
-        <p class="hint">Gewinnt ein Team einen Punkt an einem Loch, an dem es ein Birdie (o. besser) gespielt hat, zählt dieser Punkt doppelt. Beide Wertungen doppeln unabhängig.</p>
+        <p class="hint">Gewinnt ein Team den Punkt für den besten Einzelscore an einem Loch, an dem es ein Birdie (o. besser) gespielt hat, zählt dieser Punkt doppelt. Die Team-Summe bleibt einfach.</p>
       </div>
       <div class="field"><label class="fl">Aggregat-Wertung</label>
         <div class="seg" style="margin-bottom:10px">
@@ -934,6 +935,13 @@ function hcpMarks(strokes){
 }
 function miniBoard(){
   const t = totals();
+  if(S.game==="aggregat"){
+    const team = teamTotals();
+    const diff = team[0] - team[1];
+    const teamLabel = diff===0 ? "Team A/B" : `Team ${diff>0?"A":"B"}`;
+    const status = diff===0 ? "AS" : `${Math.abs(diff)}up`;
+    return `<div class="mini"><div class="chip ${diff!==0?"lead":""}"><div class="cn">${teamLabel}</div><div class="cp">${status}</div></div></div>`;
+  }
   const max = Math.max(...t, 0);
   const order = S.players.map((p,i)=>({p,i})).sort((a,b)=>t[b.i]-t[a.i]);
   const chips = order.map(({p,i})=>{
@@ -1185,12 +1193,11 @@ function aggregatCompute(h,r,par){
   const bestTeams=new Set(S.players.map((_,i)=>i).filter(i=>vals[i]===best).map(i=>S.teams[i]));
   const indivWin = bestTeams.size===1 ? [...bestTeams][0] : -1;
   const sumWin = sums[0]===sums[1] ? -1 : (sums[0]<sums[1]?0:1);
-  const dbl = !!S.cfg.birdieDouble;
-  const indivDouble = dbl && indivWin>=0 && birdie[indivWin];
-  const sumDouble   = dbl && sumWin>=0   && birdie[sumWin];
+  const indivDouble = !!S.cfg.birdieDouble && indivWin>=0 && birdie[indivWin];
+  const sumDouble = false;
   const tpts=[0,0];
   if(indivWin>=0) tpts[indivWin]+= indivDouble?2:1;
-  if(sumWin>=0)   tpts[sumWin]  += sumDouble?2:1;
+  if(sumWin>=0)   tpts[sumWin]  += 1;
   return {
     sumA:sums[0], sumB:sums[1], bestScore:best, bestBirdie:grossVals.some((v,i)=>v<par && vals[i]===best),
     indivWin, sumWin, indivDouble, sumDouble, tpts,
@@ -1359,12 +1366,30 @@ function summaryScreen(){
     : S.game==="matchplay" ? (S.cfg.matchplayNet ? "Netto-Matchplay" : "Match-Ergebnis")
     : "Spielwertung";
   const order = S.players.map((p,i)=>({p,i})).sort((a,b)=>t[b.i]-t[a.i]);
-  const rows = order.map(({p,i},rank)=>`
+  const aggregateTotals = S.game==="aggregat" ? teamTotals() : null;
+  const aggregateOrder = aggregateTotals
+    ? [0,1].sort((a,b)=>aggregateTotals[b]-aggregateTotals[a])
+    : [];
+  const rows = aggregateTotals ? aggregateOrder.map((team,rank)=>{
+    const members = S.players
+      .map((p,i)=>S.teams[i]===team ? (p.name||("Spieler "+(i+1))) : null)
+      .filter(Boolean)
+      .map(escHtml)
+      .join(" &amp; ");
+    const payout = S.stake ? (aggregateTotals[team] - avg(aggregateTotals))*S.stake : 0;
+    return `
+    <tr class="${rank===0?"win":""}">
+      <td><span class="rk">${rank+1}</span><b>Team ${team===0?"A":"B"}</b><span class="team-members">${members}</span></td>
+      <td class="num">${fmtPts(aggregateTotals[team])}</td>
+      ${S.stake?`<td class="num">${money(payout)}</td>`:""}
+    </tr>`;
+  }).join("") : order.map(({p,i},rank)=>`
     <tr class="${rank===0?"win":""}">
       <td><span class="rk">${rank+1}</span>${escHtml(p.name||("Spieler "+(i+1)))}</td>
       <td class="num">${fmtPts(t[i])}</td>
       ${S.stake?`<td class="num">${money(t[i]*S.stake - avg(t)*S.stake)}</td>`:""}
     </tr>`).join("");
+  const tablePlayerLabel = aggregateTotals ? "Team / Spieler" : "Spieler";
   let voided="";
   if(S.game==="skins"){ const c=skinsState().carried; if(c>0) voided=`<p class="hint">${c} Skin${c>1?"s":""} nicht gewonnen (Gleichstand am letzten Loch) – verfallen.</p>`; }
   if(S.game==="matchplay"){
@@ -1404,7 +1429,7 @@ function summaryScreen(){
       <div class="panel">
         <div class="eyebrow">${summaryEyebrow}</div>
         <table class="board">
-          <thead><tr><th>Spieler</th><th style="text-align:right">${ptLabel}</th>${S.stake?`<th style="text-align:right">Netto</th>`:""}</tr></thead>
+          <thead><tr><th>${tablePlayerLabel}</th><th style="text-align:right">${ptLabel}</th>${S.stake?`<th style="text-align:right">Netto</th>`:""}</tr></thead>
           <tbody>${rows}</tbody>
         </table>
         ${voided}
