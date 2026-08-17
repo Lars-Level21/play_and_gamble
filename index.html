@@ -1366,21 +1366,22 @@ function summaryScreen(){
     : S.game==="matchplay" ? (S.cfg.matchplayNet ? "Netto-Matchplay" : "Match-Ergebnis")
     : "Spielwertung";
   const order = S.players.map((p,i)=>({p,i})).sort((a,b)=>t[b.i]-t[a.i]);
-  const aggregateTotals = S.game==="aggregat" ? teamTotals() : null;
-  const aggregateOrder = aggregateTotals
-    ? [0,1].sort((a,b)=>aggregateTotals[b]-aggregateTotals[a])
+  const teamMode = S.game==="vegas" || S.game==="aggregat";
+  const teamTotalsForSummary = teamMode ? teamTotals() : null;
+  const teamOrder = teamTotalsForSummary
+    ? [0,1].sort((a,b)=>teamTotalsForSummary[b]-teamTotalsForSummary[a])
     : [];
-  const rows = aggregateTotals ? aggregateOrder.map((team,rank)=>{
+  const rows = teamTotalsForSummary ? teamOrder.map((team,rank)=>{
     const members = S.players
       .map((p,i)=>S.teams[i]===team ? (p.name||("Spieler "+(i+1))) : null)
       .filter(Boolean)
       .map(escHtml)
       .join(" &amp; ");
-    const payout = S.stake ? (aggregateTotals[team] - avg(aggregateTotals))*S.stake : 0;
+    const payout = S.stake ? (teamTotalsForSummary[team] - avg(teamTotalsForSummary))*S.stake : 0;
     return `
     <tr class="${rank===0?"win":""}">
       <td><span class="rk">${rank+1}</span><b>Team ${team===0?"A":"B"}</b><span class="team-members">${members}</span></td>
-      <td class="num">${fmtPts(aggregateTotals[team])}</td>
+      <td class="num">${fmtPts(teamTotalsForSummary[team])}</td>
       ${S.stake?`<td class="num">${money(payout)}</td>`:""}
     </tr>`;
   }).join("") : order.map(({p,i},rank)=>`
@@ -1389,7 +1390,7 @@ function summaryScreen(){
       <td class="num">${fmtPts(t[i])}</td>
       ${S.stake?`<td class="num">${money(t[i]*S.stake - avg(t)*S.stake)}</td>`:""}
     </tr>`).join("");
-  const tablePlayerLabel = aggregateTotals ? "Team / Spieler" : "Spieler";
+  const tablePlayerLabel = teamTotalsForSummary ? "Team / Spieler" : "Spieler";
   let voided="";
   if(S.game==="skins"){ const c=skinsState().carried; if(c>0) voided=`<p class="hint">${c} Skin${c>1?"s":""} nicht gewonnen (Gleichstand am letzten Loch) – verfallen.</p>`; }
   if(S.game==="matchplay"){
