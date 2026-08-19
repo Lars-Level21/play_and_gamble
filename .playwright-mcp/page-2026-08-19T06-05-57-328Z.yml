@@ -1,0 +1,44 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - button "‹ Zurück" [disabled]
+      - img "Golfclub Bostalsee" [ref=e5] [cursor=pointer]
+    - generic [ref=e6]: Play & Gamble
+    - generic [ref=e7]: Spiel wählen, Namen rein, los.
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]: Skins läuft noch – Loch 1 von 18.
+      - button "Weiter" [ref=e11] [cursor=pointer]
+      - button "✕" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]: Spielformat
+    - 'button "➕ Aggregat 2 Teams: bester Einzelscore und niedrigere Team-Summe geben je einen Punkt." [ref=e14] [cursor=pointer]':
+      - generic [ref=e15]: ➕
+      - generic [ref=e16]:
+        - generic [ref=e17]: Aggregat
+        - generic [ref=e18]: "2 Teams: bester Einzelscore und niedrigere Team-Summe geben je einen Punkt."
+    - 'button "🎯 Bingo Bango Bongo 3 Punkte pro Loch: erster aufs Grün, näher zur Fahne, erster eingelocht." [ref=e19] [cursor=pointer]':
+      - generic [ref=e20]: 🎯
+      - generic [ref=e21]:
+        - generic [ref=e22]: Bingo Bango Bongo
+        - generic [ref=e23]: "3 Punkte pro Loch: erster aufs Grün, näher zur Fahne, erster eingelocht."
+    - 'button "⚔️ Matchplay Loch-für-Loch-Duell: wer das Loch gewinnt, geht ''up''. Am Ende gewinnt, wer öfter vorne liegt." [ref=e24] [cursor=pointer]':
+      - generic [ref=e25]: ⚔️
+      - generic [ref=e26]:
+        - generic [ref=e27]: Matchplay
+        - generic [ref=e28]: "Loch-für-Loch-Duell: wer das Loch gewinnt, geht 'up'. Am Ende gewinnt, wer öfter vorne liegt."
+    - button "🪙 Skins Niedrigster Score gewinnt das Loch. Gleichstand → der Skin wandert weiter." [ref=e29] [cursor=pointer]:
+      - generic [ref=e30]: 🪙
+      - generic [ref=e31]:
+        - generic [ref=e32]: Skins
+        - generic [ref=e33]: Niedrigster Score gewinnt das Loch. Gleichstand → der Skin wandert weiter.
+    - button "🎲 Vegas 2 Teams, Schläge werden zur Zahl kombiniert – Differenz zählt." [ref=e34] [cursor=pointer]:
+      - generic [ref=e35]: 🎲
+      - generic [ref=e36]:
+        - generic [ref=e37]: Vegas
+        - generic [ref=e38]: 2 Teams, Schläge werden zur Zahl kombiniert – Differenz zählt.
+    - button "🐺 Wolf Rotierender Wolf wählt Partner oder spielt allein gegen den Rest." [ref=e39] [cursor=pointer]:
+      - generic [ref=e40]: 🐺
+      - generic [ref=e41]:
+        - generic [ref=e42]: Wolf
+        - generic [ref=e43]: Rotierender Wolf wählt Partner oder spielt allein gegen den Rest.
+    - paragraph [ref=e44]: Kein Login, keine Server. Alles bleibt in diesem Browser.

@@ -361,6 +361,12 @@ const GAMES = {
   matchplay:{name:"Matchplay",        icon:"⚔️", cls:"matchplay", min:2, max:2, defP:2,
           desc:"Loch-für-Loch-Duell: wer das Loch gewinnt, geht 'up'. Am Ende gewinnt, wer öfter vorne liegt."}
 };
+const EXTRA_STATS = [
+  {key:"putt3",   cfgKey:"show3Putt",   attr:"data-putt3",   label:"3-Putts"},
+  {key:"bunker",  cfgKey:"showBunker",  attr:"data-bunker",  label:"Bunker"},
+  {key:"penalty", cfgKey:"showPenalty", attr:"data-penalty", label:"Strafschläge"},
+  {key:"meckern", cfgKey:"showMeckern", attr:"data-meckern", label:"Meckern"}
+];
 let S = null;
 let holeTransitionDir = null;
 
@@ -491,13 +497,14 @@ function freshState(game){
   return base;
 }
 function defaultCfg(game){
-  if(game==="bbb")   return {pt:1, showGross:false};
-  if(game==="wolf")  return {partnerWin:1, loneWin:null, loneLoss:1, blindMult:2, carry:false, showGross:false}; // loneWin null => Anzahl Gegner
-  if(game==="vegas") return {flip:true, cap:9, showGross:false};
-  if(game==="aggregat") return {birdieDouble:false, showGross:false, aggregatNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
-  if(game==="skins") return {showGross:false, skinsNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
-  if(game==="matchplay") return {showGross:false, matchplayNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
-  return {};
+  const common = {showGross:false, show3Putt:false, showBunker:false, showPenalty:false, showMeckern:false};
+  if(game==="bbb")   return {...common, pt:1};
+  if(game==="wolf")  return {...common, partnerWin:1, loneWin:null, loneLoss:1, blindMult:2, carry:false}; // loneWin null => Anzahl Gegner
+  if(game==="vegas") return {...common, flip:true, cap:9};
+  if(game==="aggregat") return {...common, birdieDouble:false, aggregatNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
+  if(game==="skins") return {...common, skinsNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
+  if(game==="matchplay") return {...common, matchplayNet:false, si9:Array(9).fill(null), si18:Array(18).fill(null)};
+  return {...common};
 }
 
 function isHoleCompleteByGame(r){
@@ -537,7 +544,8 @@ function installMobileTapGuard(){
   let lastY = 0;
   const guardSelector = [
     "[data-vstep]","[data-astep]","[data-mpstep]","[data-bstep]","[data-wstep]","[data-sstep]",
-    "[data-vpar]","[data-apar]","[data-mppar]","[data-hole]","[data-next]"
+    "[data-vpar]","[data-apar]","[data-mppar]","[data-hole]","[data-next]",
+    "[data-putt3]","[data-bunker]","[data-penalty]","[data-meckern]"
   ].join(",");
   document.addEventListener("touchend", (ev)=>{
     const t = ev.target;
@@ -813,16 +821,19 @@ function configScreen(){
       </div>
       ${netOnlyFields}`;
   }
-  {
-    extra += `
-      <div class="field"><label class="fl">Zusätzliche Wertung</label>
-        <div class="seg">
-          <button data-seg="showGross:1" class="${S.cfg.showGross?"on":""}">Brutto anzeigen</button>
-          <button data-seg="showGross:0" class="${!S.cfg.showGross?"on":""}">aus</button>
-        </div>
-        <p class="hint">Zeigt am Ende zusätzlich ein Brutto-Ranking (Summe aller Schläge, niedriger ist besser).</p>
-      </div>`;
-  }
+  const statToggle = (key, label, hint) => `
+    <div class="field"><label class="fl">${label}</label>
+      <div class="seg">
+        <button data-seg="${key}:1" class="${S.cfg[key]?"on":""}">an</button>
+        <button data-seg="${key}:0" class="${!S.cfg[key]?"on":""}">aus</button>
+      </div>
+      <p class="hint">${hint}</p>
+    </div>`;
+  const statsPanel = `<div class="panel">
+    <div class="eyebrow">Zusätzliche Statistiken</div>
+    ${statToggle("showGross","Brutto-Wertung","Zeigt am Ende zusätzlich ein Brutto-Ranking (Summe aller Schläge, niedriger ist besser).")}
+    ${EXTRA_STATS.map(s=>statToggle(s.cfgKey, s.label, `Anzahl ${s.label} je Spieler je Loch erfassen und am Ende auswerten.`)).join("")}
+  </div>`;
   return `${header(g.name,"Einstellungen",{back:"setup"})}
     <main>
       <div class="panel">
@@ -832,12 +843,13 @@ function configScreen(){
             <button data-seg="holes:18" class="${S.holes===18?"on":""}">18 Löcher</button>
           </div>
         </div>
-        <div class="field"><label class="fl">Einsatz je Punkt (€ – optional, für Abrechnung)</label>
+        <div class="field"><label class="fl">Einsatz je Spieler je Loch (€ – optional, für Abrechnung)</label>
           <input type="number" data-cfgv="stake" value="${S.stake||""}" min="0" step="0.1" placeholder="z. B. 0,50">
         </div>
         <div class="divider"></div>
         ${extra}
       </div>
+      ${statsPanel}
     </main>
     ${bar(`<button class="btn primary" data-start>Runde starten ›</button>`)}`;
 }
@@ -1021,6 +1033,7 @@ function bbbHole(h){
     ${line("bango","Bango","näher zur Fahne")}
     ${line("bongo","Bongo","erster eingelocht")}
     ${grossBox}
+    ${extraStatsBox(h)}
   </div>`;
 }
 
@@ -1076,6 +1089,7 @@ function wolfHole(h){
     </div>
     ${outcome}
     ${grossBox}
+    ${extraStatsBox(h)}
   </div>`;
 }
 function wolfComputePts(h){
@@ -1120,6 +1134,7 @@ function vegasHole(h){
     <div class="scorerow parrow"><span class="vn">PAR</span>${parStepper(par,"data-vpar")}</div>
     ${teamRows}
     ${resBox}
+    ${extraStatsBox(h)}
   </div>`;
 }
 function vegasCompute(h, r, par){
@@ -1178,6 +1193,7 @@ function aggregatHole(h){
     ${teamRows}
     ${resBox}
     ${netHint}
+    ${extraStatsBox(h)}
   </div>`;
 }
 function aggregatCompute(h,r,par){
@@ -1264,6 +1280,7 @@ function skinsHole(h){
     ${rows}
     ${res}
     ${netHint}
+    ${extraStatsBox(h)}
   </div>`;
 }
 
@@ -1349,6 +1366,7 @@ function matchplayHole(h){
     ${holeRes}
     ${statusBox}
     ${netHint}
+    ${extraStatsBox(h)}
   </div>`;
 }
 
@@ -1371,13 +1389,14 @@ function summaryScreen(){
   const teamOrder = teamTotalsForSummary
     ? [0,1].sort((a,b)=>teamTotalsForSummary[b]-teamTotalsForSummary[a])
     : [];
+  const stakeVal = stakePerPoint();
   const rows = teamTotalsForSummary ? teamOrder.map((team,rank)=>{
     const members = S.players
       .map((p,i)=>S.teams[i]===team ? (p.name||("Spieler "+(i+1))) : null)
       .filter(Boolean)
       .map(escHtml)
       .join(" &amp; ");
-    const payout = S.stake ? (teamTotalsForSummary[team] - avg(teamTotalsForSummary))*S.stake : 0;
+    const payout = S.stake ? (teamTotalsForSummary[team] - avg(teamTotalsForSummary))*stakeVal : 0;
     return `
     <tr class="${rank===0?"win":""}">
       <td><span class="rk">${rank+1}</span><b>Team ${team===0?"A":"B"}</b><span class="team-members">${members}</span></td>
@@ -1388,7 +1407,7 @@ function summaryScreen(){
     <tr class="${rank===0?"win":""}">
       <td><span class="rk">${rank+1}</span>${escHtml(p.name||("Spieler "+(i+1)))}</td>
       <td class="num">${fmtPts(t[i])}</td>
-      ${S.stake?`<td class="num">${money(t[i]*S.stake - avg(t)*S.stake)}</td>`:""}
+      ${S.stake?`<td class="num">${money(t[i]*stakeVal - avg(t)*stakeVal)}</td>`:""}
     </tr>`).join("");
   const tablePlayerLabel = teamTotalsForSummary ? "Team / Spieler" : "Spieler";
   let voided="";
@@ -1404,7 +1423,7 @@ function summaryScreen(){
   }
   let settle="";
   if(S.stake){
-    settle = `<div class="panel"><div class="eyebrow">Abrechnung · ${money(S.stake)}/${S.game==="skins"?"Skin":"Punkt"}</div>
+    settle = `<div class="panel"><div class="eyebrow">Abrechnung · ${money(S.stake)}/Spieler/Loch</div>
       <div class="settle">${settleUp(t)}</div>
       <p class="hint">Netto ggü. Durchschnitt: wer über dem Schnitt liegt, bekommt – wer drunter liegt, zahlt.</p></div>`;
   }
@@ -1425,6 +1444,22 @@ function summaryScreen(){
       <p class="hint">Niedriger ist besser. Gewertet: ${gross.counted} von ${S.holes} Bahnen.</p>
     </div>`;
   }
+  const statsTotals = extraStatsTotals();
+  let statsPanel = "";
+  if(statsTotals){
+    const headCols = statsTotals.map(s=>`<th style="text-align:right">${s.label}</th>`).join("");
+    const statsRows = S.players.map((p,i)=>{
+      const cells = statsTotals.map(s=>`<td class="num">${s.values[i]}</td>`).join("");
+      return `<tr><td>${escHtml(p.name||("Spieler "+(i+1)))}</td>${cells}</tr>`;
+    }).join("");
+    statsPanel = `<div class="panel">
+      <div class="eyebrow">Zusatzstatistiken</div>
+      <table class="board">
+        <thead><tr><th>Spieler</th>${headCols}</tr></thead>
+        <tbody>${statsRows}</tbody>
+      </table>
+    </div>`;
+  }
   return `${header(GAMES[S.game].name,"Endstand",{back:"play"})}
     <main>
       <div class="panel">
@@ -1436,15 +1471,30 @@ function summaryScreen(){
         ${voided}
       </div>
       ${grossPanel}
+      ${statsPanel}
       ${settle}
     </main>
     ${bar(`<button class="btn ghost" data-back="play" style="flex:1">‹ Löcher</button><button class="btn turf" data-newround>Neue Runde</button>`)}`;
 }
 function avg(t){ return t.reduce((a,b)=>a+b,0)/t.length; }
+function totalPointsAwarded(){
+  if(S.game==="vegas"||S.game==="aggregat"){
+    const team = teamTotals();
+    return team[0]+team[1];
+  }
+  return totals().reduce((a,b)=>a+b,0);
+}
+function stakePerPoint(){
+  if(!S.stake) return 0;
+  const pot = S.players.length * S.holes * S.stake;
+  const sum = totalPointsAwarded();
+  return sum>0 ? pot/sum : 0;
+}
 function settleUp(t){
   const a = avg(t);
+  const val = stakePerPoint();
   return S.players.map((p,i)=>{
-    const net = (t[i]-a)*S.stake;
+    const net = (t[i]-a)*val;
     const sign = net>=0?"bekommt":"zahlt";
     return `<div><span>${escHtml(p.name||("Sp."+(i+1)))}</span><span class="amt" style="color:${net>=0?'var(--turf-dark)':'var(--flag-dark)'}">${sign} ${money(Math.abs(net))}</span></div>`;
   }).join("");
@@ -1477,6 +1527,47 @@ function parStepper(par, attr){
     <span class="scval">${par}</span>
     <button ${attr}="1" aria-label="Par plus">+</button>
   </div>`;
+}
+function statStepper(i, attr, val){
+  const v = Number(val)||0;
+  return `<div class="vscore">
+    <span class="vn">${escHtml(nm(i))}</span>
+    <div class="stepper">
+      <button ${attr}="${i}:-1" aria-label="minus" ${v<=0?"disabled":""}>–</button>
+      <div class="val">${v}</div>
+      <button ${attr}="${i}:1" aria-label="plus">+</button>
+    </div>
+  </div>`;
+}
+function extraStatsBox(h){
+  const r = S.results[h] || {};
+  const active = EXTRA_STATS.filter(s=>S.cfg[s.cfgKey]);
+  if(!active.length) return "";
+  const blocks = active.map(s=>`
+    <div class="field" style="margin-top:10px">
+      <label class="fl">${s.label}</label>
+      ${S.players.map((p,i)=>statStepper(i, s.attr, (r[s.key]||[])[i])).join("")}
+    </div>`).join("");
+  return `<div class="divider" style="margin-top:8px"></div>
+    <div style="margin-top:6px">
+      <div class="eyebrow">Zusatzstatistiken · Bahn ${h}</div>
+      ${blocks}
+    </div>`;
+}
+function extraStatsTotals(){
+  const active = EXTRA_STATS.filter(s=>S.cfg[s.cfgKey]);
+  if(!active.length) return null;
+  const totals = active.map(s=>({label:s.label, values:S.players.map(()=>0)}));
+  for(let h=1; h<=S.holes; h++){
+    const r = S.results[h];
+    if(!r) continue;
+    active.forEach((s,si)=>{
+      const arr = r[s.key];
+      if(!Array.isArray(arr)) return;
+      S.players.forEach((_,i)=>{ totals[si].values[i] += Number(arr[i])||0; });
+    });
+  }
+  return totals;
 }
 function nm(i){ return S.players[i]?.name || ("Spieler "+(i+1)); }
 function fmt(n){ return (n>0?"+":"")+n; }
@@ -1548,6 +1639,7 @@ function wire(){
     else if(k==="skinsNet") S.cfg.skinsNet=(v==="1");
     else if(k==="aggregatNet") S.cfg.aggregatNet=(v==="1");
     else if(k==="matchplayNet") S.cfg.matchplayNet=(v==="1");
+    else if(EXTRA_STATS.some(s=>s.cfgKey===k)) S.cfg[k]=(v==="1");
     persist(); render();
   });
   app.querySelectorAll("[data-hcp]").forEach(inp=>inp.oninput=()=>{
@@ -1681,6 +1773,17 @@ function wire(){
     else { r.scores[i]=Math.min(15,Math.max(1,Number(r.scores[i])+d)); }
     r.finalized=false;
     persist(); render();
+  });
+
+  // Zusatzstatistiken: 3-Putts, Bunker, Strafschläge, Meckern (Zähler ≥ 0)
+  EXTRA_STATS.forEach(s=>{
+    app.querySelectorAll(`[${s.attr}]`).forEach(b=>b.onclick=()=>{
+      const [i,d] = b.getAttribute(s.attr).split(":").map(Number); const h=S.currentHole;
+      const r = S.results[h] || (S.results[h]={});
+      if(!Array.isArray(r[s.key])) r[s.key] = S.players.map(()=>0);
+      r[s.key][i] = Math.max(0, (Number(r[s.key][i])||0) + d);
+      persist(); render();
+    });
   });
 
   const nr=app.querySelector("[data-newround]");

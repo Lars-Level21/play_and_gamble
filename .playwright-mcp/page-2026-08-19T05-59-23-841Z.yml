@@ -1,0 +1,40 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - button "‹ Zurück" [disabled]
+      - img "Golfclub Bostalsee" [ref=e5] [cursor=pointer]
+    - generic [ref=e6]: Play & Gamble
+    - generic [ref=e7]: Spiel wählen, Namen rein, los.
+  - main [ref=e8]:
+    - generic [ref=e9]: Spielformat
+    - 'button "➕ Aggregat 2 Teams: bester Einzelscore und niedrigere Team-Summe geben je einen Punkt." [ref=e10] [cursor=pointer]':
+      - generic [ref=e11]: ➕
+      - generic [ref=e12]:
+        - generic [ref=e13]: Aggregat
+        - generic [ref=e14]: "2 Teams: bester Einzelscore und niedrigere Team-Summe geben je einen Punkt."
+    - 'button "🎯 Bingo Bango Bongo 3 Punkte pro Loch: erster aufs Grün, näher zur Fahne, erster eingelocht." [ref=e15] [cursor=pointer]':
+      - generic [ref=e16]: 🎯
+      - generic [ref=e17]:
+        - generic [ref=e18]: Bingo Bango Bongo
+        - generic [ref=e19]: "3 Punkte pro Loch: erster aufs Grün, näher zur Fahne, erster eingelocht."
+    - 'button "⚔️ Matchplay Loch-für-Loch-Duell: wer das Loch gewinnt, geht ''up''. Am Ende gewinnt, wer öfter vorne liegt." [ref=e20] [cursor=pointer]':
+      - generic [ref=e21]: ⚔️
+      - generic [ref=e22]:
+        - generic [ref=e23]: Matchplay
+        - generic [ref=e24]: "Loch-für-Loch-Duell: wer das Loch gewinnt, geht 'up'. Am Ende gewinnt, wer öfter vorne liegt."
+    - button "🪙 Skins Niedrigster Score gewinnt das Loch. Gleichstand → der Skin wandert weiter." [ref=e25] [cursor=pointer]:
+      - generic [ref=e26]: 🪙
+      - generic [ref=e27]:
+        - generic [ref=e28]: Skins
+        - generic [ref=e29]: Niedrigster Score gewinnt das Loch. Gleichstand → der Skin wandert weiter.
+    - button "🎲 Vegas 2 Teams, Schläge werden zur Zahl kombiniert – Differenz zählt." [ref=e30] [cursor=pointer]:
+      - generic [ref=e31]: 🎲
+      - generic [ref=e32]:
+        - generic [ref=e33]: Vegas
+        - generic [ref=e34]: 2 Teams, Schläge werden zur Zahl kombiniert – Differenz zählt.
+    - button "🐺 Wolf Rotierender Wolf wählt Partner oder spielt allein gegen den Rest." [ref=e35] [cursor=pointer]:
+      - generic [ref=e36]: 🐺
+      - generic [ref=e37]:
+        - generic [ref=e38]: Wolf
+        - generic [ref=e39]: Rotierender Wolf wählt Partner oder spielt allein gegen den Rest.
+    - paragraph [ref=e40]: Kein Login, keine Server. Alles bleibt in diesem Browser.
